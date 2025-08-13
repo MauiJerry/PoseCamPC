@@ -217,6 +217,7 @@ class PoseApp:
     #    else:
     #        print("cv2_terminate: cap is already None")
     def play_video(self):
+
         self.height_upper = self.upper_canvas.winfo_height()
         print("Upper canvas height:", self.height_upper)
         print("Source:", self.video_input_source.get())
@@ -225,7 +226,6 @@ class PoseApp:
                 print("try open webcam")
                 # find the web cam number
                 self.cap = cv2.VideoCapture(self.camId, cv2.CAP_DSHOW)
-
             elif self.video_input_source.get() == g_file:
                 file_path = self.video_input_file.get()
                 print("try open video file: {}".format(file_path))
@@ -238,7 +238,6 @@ class PoseApp:
                 # Handle the case where no input source is selected
                 self.cap = None
                 print("No input source selected")
-
         except Exception as e:
             print("Error opening video capture: {}".format(e))
             return
@@ -248,11 +247,6 @@ class PoseApp:
         if not self.cap.isOpened():
             print("Failed to open file.")
             return
-
-        print("start_video_loop")
-        # Code to start reading the input and calling pose_detector.process_frame() for each frame
-        print("video_input_source: {}".format(self.video_input_source.get()))
-        print("video_input_file: {}".format(self.video_input_file.get()))
 
         self.start_video_button.config(state=tk.DISABLED)
         self.stop_video_button.config(state=tk.NORMAL)
@@ -266,94 +260,95 @@ class PoseApp:
         # Calculate the delay based on the frame rate
         self.video_delay = int(1000 / fps)  # Delay in milliseconds
 
-        # Resize the app window to match the video size
+        # Get current window size and video size, then choose the larger dimensions
+        current_width = self.root.winfo_width()
+        current_height = self.root.winfo_height() - self.height_upper  # Subtract controls area
+        
         frame_width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         frame_height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        print("video size: {} x {}".format(frame_width, frame_height))
-        self.root.geometry(f"{frame_width}x{frame_height + self.height_upper}")
-        self.bottom_canvas.configure(width=frame_width, height=frame_height)
+        
+        # Choose the larger of current or video dimensions
+        new_width = max(current_width, frame_width)
+        new_height = max(current_height, frame_height)
+        
+        print("Current size: {} x {}, Video size: {} x {}, New size: {} x {}".format(
+            current_width, current_height, frame_width, frame_height, new_width, new_height))
+        
+        # Only resize if the new size is different from current size
+        if new_width != current_width or new_height != current_height:
+            self.root.geometry(f"{new_width}x{new_height + self.height_upper}")
+            self.bottom_canvas.configure(width=new_width, height=new_height)
+        else:
+            self.bottom_canvas.configure(width=frame_width, height=frame_height)
+        
         self.running = True
         self.frameCount = 0
         self.loopcount = 1
-        print("running is", self.running)
+        
+        # Start the video processing loop
+        self._display_frame_loop()
+        print("Video loop started.")
 
-        def display_frame():
-            print("display_frame {} {} {}".format(self.running, self.frameCount, self.loopcount))
-            start_time = time.time()
-            if not self.running:
-                print("display_frame: not running, so return")
-                return
+    def _display_frame_loop(self):
+        start_time = time.time()
+        if not self.running:
+            return
 
-            # Code to read the input and process frames using pose_detector.process_frame()
-            ret, frame = self.cap.read()
-            if not ret:
-                print("Video capture read failed")
-                if self.video_looping.get():
-                    print("looping video, so retry)")
-                    self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-                    self.loopcount += 1
-                    self.frameCount = 0
-                    ret, frame = self.cap.read()
-                else:
-                    print("not looping video, so break from running loop")
-                    print("GUI should give error dialog here, update ui")
+        # Code to read the input and process frames using pose_detector.process_frame()
+        ret, frame = self.cap.read()
+        if not ret:
+            print("Video capture read failed.")
+            if self.video_looping.get():
+                print("Looping video.")
+                self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                self.loopcount += 1
+                self.frameCount = 0
+                ret, frame = self.cap.read()
+                if not ret:
+                    print("Failed to read frame after looping.")
                     self.stop_video()
                     return
-
-            if self.frameCount % 30:
-                frame_height, frame_width, _  = frame.shape
-                frame_width = int(frame_width)
-                frame_height = int(frame_height)
-                print("video size: {} x {}".format(frame_width, frame_height))
-
-            # send the image via NDI
-            if self.ndi_send is not None:
-                frame_rgbA = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA)
-                self.video_frame.data = frame_rgbA
-                self.video_frame.FourCC = ndi.FOURCC_VIDEO_TYPE_RGBX
-                #self.video_frame.frame_rate_D = 1
-                #self.video_frame.frame_rate_N = 120
-                ndi.send_send_video_v2(self.ndi_send,self.video_frame)
             else:
-                print("ndi_send is None")
+                print("Video ended and not looping.")
+                self.stop_video()
+                return
 
-            # process the frame with PoseDetector
-            results = pose_detector.process_image(frame)
-            if results and self.osc_client is not None:
-                pose_detector.send_landmarks_via_osc(self.osc_client)
-                pose_detector.draw_landmarks(frame)
-            else:
-                print("No pose detected")
-                #return
+        # send the image via NDI
+        if self.ndi_send is not None:
+            frame_rgbA = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA)
+            self.video_frame.data = frame_rgbA
+            self.video_frame.FourCC = ndi.FOURCC_VIDEO_TYPE_RGBX
+            ndi.send_send_video_v2(self.ndi_send,self.video_frame)
 
-            # convert pose+frame image to TK format and display
-            # Create a PIL ImageTk object
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            tkimage = ImageTk.PhotoImage(image=Image.fromarray(frame))
-            #print("created tkimage : {}x{}".format(tkimage.width(), tkimage.height()))
-            #image = tk.PhotoImage(master=self.bottom_canvas, width=frame_width, height=frame_height)                # Display the frame on the bottom canvas
-            self.bottom_canvas.create_image(0, 0, anchor=tk.NW, image=tkimage, state="normal")
-            self.bottom_canvas.image = tkimage  # Save a reference to prevent garbage collection
-            self.bottom_canvas.update()
+        # process the frame with PoseDetector
+        results = pose_detector.process_image(frame)
+        if results and self.osc_client is not None:
+            pose_detector.send_landmarks_via_osc(self.osc_client)
+            pose_detector.draw_landmarks(frame)
+        elif self.frameCount % 60 == 0: # Print only occasionally
+            print("No pose detected")
 
-            self.frameCount += 1
-            #print("frameCount: {}".format(frameCount), "loopcount: {}".format(loopcount))
-            # calculate the remaining frame delay to match the video frame rate
-            end_time = time.time()
-            elapsed_time = (end_time - start_time) * 1000  # Convert to milliseconds
-            delay = max(self.video_delay - int(elapsed_time), 1)
-            print("elapsed_time {} vidDelay {} remaining delay: {}".format(elapsed_time, self.video_delay,delay))
-            self.root.after(delay, display_frame)
-            print("after root delay", delay)
-
-        display_frame()
-        print("End Video")
+        # convert pose+frame image to TK format and display
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        tkimage = ImageTk.PhotoImage(image=Image.fromarray(frame))
+        
+        # Display the frame on the bottom canvas
+        self.bottom_canvas.create_image(0, 0, anchor=tk.NW, image=tkimage, state="normal")
+        self.bottom_canvas.image = tkimage  # Save a reference to prevent garbage collection
+        
+        self.frameCount += 1
+        
+        # calculate the remaining frame delay to match the video frame rate
+        end_time = time.time()
+        elapsed_time = (end_time - start_time) * 1000  # Convert to milliseconds
+        delay = max(self.video_delay - int(elapsed_time), 1)
+        
+        self.root.after(delay, self._display_frame_loop)
 
     def stop_video(self):
-        print("stop video loop")
+        print("Stopping video loop.")
         self.running = False
         if self.cap is not None:
-            print("stop_video: cap is not None, release")
             self.cap.release()
         self.cap = None
         self.start_video_button.config(state=tk.NORMAL)
