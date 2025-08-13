@@ -1,0 +1,53 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+.venv/
+env/
+venv/
+
+# pyenv local version file
+.python-version
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+*.egg
+.eggs/
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# VSCode settings
+.vscode/
+
+# OS-specific
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Icon?
+desktop.ini
+
+# Local test data
+*.mp4
+*.mov
+*.avi
+*.jpg
+*.png
+*.json
+*.csv
+
+# NDI wheel file (3.5Mb binary, keep in ndi/ but ignore from Git?)
+# ndi/*.whl
+
+# Logs
+*.log
+
+# Backup files
+*~
+*.bak
+*.swp
