@@ -159,6 +159,23 @@ class PoseCamController:
             self.ndi_initialized = False
             print("[NDI] Library destroyed.")
 
+    def send_video_via_ndi(self, frame):
+        """Converts a BGR frame to RGBA and sends it via NDI."""
+        if not self.ndi_sender:
+            return
+
+        try:
+            # NDI expects an RGBA frame. OpenCV provides BGR.
+            frame_rgba = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA)
+
+            ndi_video_frame = ndi.VideoFrameV2()
+            ndi_video_frame.data = frame_rgba
+            ndi_video_frame.FourCC = ndi.FOURCC_VIDEO_TYPE_RGBX
+
+            ndi.send_send_video_v2(self.ndi_sender, ndi_video_frame)
+        except Exception as e:
+            print(f"[NDI] Error sending video frame: {e}")
+
     def run(self):
         """The main processing loop. This should be run in a separate thread."""
         self.update_state(AppState.READY)
@@ -201,7 +218,7 @@ class PoseCamController:
                         self.preview_frame_queue.put_nowait(frame.copy())
                     except queue.Full:
                         pass # GUI is lagging, just drop the frame
-                    self.pose_detector.send_video_via_ndi(frame, self.ndi_sender) # Send original to NDI
+                    self.send_video_via_ndi(frame) # Send original to NDI
                 else:
                     # This is a normal end-of-stream event.
                     print("[INFO] End of video stream. Stopping.")

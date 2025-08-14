@@ -1,5 +1,5 @@
 from mediapipe import solutions as mp
-from detectors.base import AbstractPoseDetector
+from .base import AbstractPoseDetector
 
 class PoseDetectorMediapipe(AbstractPoseDetector):
     def __init__(self):
