@@ -1,91 +1,124 @@
-# PoseCamPC (Phase 1.1
+# PoseCamPC
 
-PoseCamPC is part of the Pose2Art project.
+A real-time pose detection application that captures video from a webcam or file, analyzes it to find human body landmarks, and streams the results via NDI (video) and OSC (landmark data).  It is part of my Pose2Art project which uses the outputs to drive TouchDesigner projects.  It should also be able to drive Unreal and Unity.
 
-Minimal repo to run the Pose2Art camera app that:
+## Architecture
 
-- Reads webcam or video file
-- Sends OSC landmarks
-- Publishes video via NDI (using a **local** `ndi-python` wheel for Python 3.12)
-- Uses `pyenv-win` to manage Python versions (3.12 now, 3.11 ready for fallback)
+The application has been refactored into a modern, multi-threaded architecture for improved responsiveness and maintainability:
 
-> We intentionally **do not** list `ndi-python` in `requirements.txt`.  
-> Install the local `.whl` from `./ndi/` manually after setting up the venv.
+-   **`core/controller.py`**: The "engine" of the application. It runs in a background thread, managing video capture, processing, and output streams.
+-   **`ui/tk_gui.py`**: The graphical user interface, built with Tkinter. It runs on the main thread and acts as a "remote control" for the controller.
+-   **`detectors/`**: Contains the pose detection logic (e.g., using MediaPipe).
+-   **`core/osc_listener.py`**: Runs a server in another thread to allow for remote control of the application via OSC messages.
 
 ---
 
-## Prereqs (Windows 11)
+## Setup and Installation (Windows)
 
-### 1. Install **NDI Tools** and SDK
-- Download from the [NDI Tools website](https://ndi.video/tools/)
-- Run the installer, select all NDI Tools (includes the NDI runtime and SDK)
-- This is required for `ndi-python` to function
+### 1. Prerequisites
 
-### 2. Install **pyenv-win**
-```powershell
-Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/pyenv-win/pyenv-win/master/pyenv-win/install-pyenv-win.ps1" -OutFile "./install-pyenv-win.ps1"
-&"./install-pyenv-win.ps1"
-```
-Close and reopen your terminal so PATH changes take effect
+-   **NDI Tools**: The NDI runtime and SDK are required for this application to function.
+    -   Download from the NDI Tools website.
+    -   Run the installer and select all tools.
 
-Check installation:
-```powershell
-pyenv --version
-```
-expect v 3.1.1 or later
+-   **pyenv-win**: Used to manage Python versions.
+    ```powershell
+    Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/pyenv-win/pyenv-win/master/pyenv-win/install-pyenv-win.ps1" -OutFile "./install-pyenv-win.ps1"; &"./install-pyenv-win.ps1"
+    ```
+    Close and reopen your terminal for the PATH changes to take effect. Verify with `pyenv --version`.
 
-### Setup
+### 2. Installation Steps
 
-Install Python 3.12 (and optional 3.11 for fallback)
+1.  **Install Python:** Use `pyenv` to install the correct Python version.
+    ```powershell
+    pyenv install 3.12.6
+    pyenv local 3.12.6
+    ```
 
-```powershell
-pyenv install 3.12.6
-pyenv install 3.11.9   # optional
-pyenv local 3.12.6
-```
-Run the setup scripts to create/ activate virtual env and install dependencies
+2.  **Run Setup Script:** This script creates a virtual environment and installs dependencies from `requirements.txt`.  
+    ```powershell
+    scripts\setup.bat
+    ```
 
-```powershell
-scripts/setup.bat
-```
+3.  **Install NDI for Python:** The `ndi-python` library must be installed manually from the local wheel file.
+    > **Note:** We intentionally do not list `ndi-python` in `requirements.txt` because it is not available on PyPI for all Python versions. This command is dealt with in the setup.bat
+    ```powershell
+    # Make sure your venv is active before running this
+    pip install ndi/NDIlib_python-5.6.0-cp312-cp312-win_amd64.whl
+    ```
+
+---
+
 ## Preflight Tests
 
-preflight_tx.py and preflight_rx.py are included to confirm that OSC and NDI are working correctly before running the main app.  To run these, open two powershells in the project folder and run the commands
+Before running the main application, you can use the included scripts to verify that NDI and OSC are working correctly on your system. Open two separate terminals in the project root.
 
-In one terminal (sender):
+**Terminal 1 (Sender):** `scripts\run_tx.bat`
+
+**Terminal 2 (Receiver/Validator):** `scripts\run_rx.bat`
+
+You should see the receiver terminal printing periodic NDI resolution/FPS updates and confirming the arrival of OSC messages.
+
+---
+
+## Running the Application
+
+Use the provided run script to launch the application with its UI.
 ```powershell
-run_tx.bat 
+scripts\run.bat
 ```
-In another terminal (receiver/validator):
-```powershell
-run_rx.bat
+Alternatively, you can run it directly with Python or in Visual Studio Code.
+```bash
+# Ensure your virtual environment is active
+python poseCamPC.py
 ```
-### Expected output:
 
-Receiver prints periodic NDI resolution/fps updates (e.g. NDI 1280x720 30.0 fps)
+## User Interface Guide
 
-OSC messages arrive (/image-width, /image-height, /numLandmarks, /p1/<name> …)
+The main window is split into two sections: the controls on the left and the video preview on the right.
 
-OK summary once metadata is seen
+### Main Controls
 
-If you want this to exactly match the current TouchDesigner address schema, keep /p1/<name> (triples).
-To use the older per-axis messages, uncomment those lines in preflight_tx.py.
+-   **Start Video**: Begins capturing and processing video from the selected input source.
+-   **Pause Video**: Temporarily freezes the video stream. Click again to resume.
+-   **Stop Video**: Halts the video stream and releases the camera or file.
 
-## Editing
+### Input Source
 
-VSCode is my preferred environment. the .vscode folder (should have) several files to make it so included in the git.
+This section determines where the video comes from.
 
-## Running
-```powershell
-scripts/run.bat
-```
-TKinker UI should appear.
+-   **Webcam / File Radio Buttons**: Selects the active input mode. The controls for the inactive mode will be disabled.
+-   **Webcam -> Device Dropdown**: When "Webcam" is selected, this dropdown lists all available cameras on your system. Select one to use it.
+-   **File -> Select... Button**: When "File" is selected, click this to open a file browser and choose a video file. The path of the selected file will appear in the text box next to it.
+-   **Loop Video Checkbox**: If a video file is selected, checking this box will cause the video to loop automatically when it reaches the end.
 
-1. select either the webcam radio button or browse for file
-2. check the NDI Video Out Name (posePC)
-3. check the OSC Output URL (127.0.0.1  5005)
-4. start NDI
-5. start OSC
-6. Play Video (opens composite video in window)
+### Output Settings
 
-you must do all this to see the results show in the client tool (eg TouchDesigner)
+This section configures the NDI and OSC data streams. These can be started and stopped independently of the main video stream.
+
+-   **NDI Stream**:
+    -   **Text Box**: Set the name for your NDI video stream as it will appear on the network.
+    -   **Start/Stop Buttons**: Manually start or stop the NDI output.
+-   **OSC**:
+    -   **IP / Port Text Boxes**: Set the destination IP address and port for the OSC landmark data.
+    -   **Start/Stop Buttons**: Manually start or stop sending OSC messages.
+
+### Video Preview
+
+The large area on the right displays the live video feed with the detected pose landmarks overlaid.
+
+-   It will show a "Waiting for video stream..." message on startup.
+-   The preview will begin once you press "Start Video".
+
+### OSC Remote Control
+
+The application listens for OSC messages on port `9000` for remote control. See `core/osc_listener.py` for the available commands and paths, which include:
+
+-   `/posecam/control/start`
+-   `/posecam/control/stop`
+-   `/posecam/input/select [webcam|file]`
+-   `/posecam/input/file [path_to_file]`
+---
+# Future Improvements
+
+The pose_detector library includes stubs for dealing with multiple person/skeleton.  There are a number of tools that can do this.  Additionally, there are developing tools that can capture 3d data (approximately) from a video stream.
