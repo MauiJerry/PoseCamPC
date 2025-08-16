@@ -99,8 +99,12 @@ This section configures the NDI and OSC data streams. These can be started and s
 -   **NDI Stream**:
     -   **Text Box**: Set the name for your NDI video stream as it will appear on the network.
     -   **Start/Stop Buttons**: Manually start or stop the NDI output.
+    -   **Draw Overlay on NDI Checkbox**: When checked, the detected skeleton is drawn directly onto the NDI video stream. Uncheck to send a clean video feed.
 -   **OSC**:
     -   **IP / Port Text Boxes**: Set the destination IP address and port for the OSC landmark data.
+    -   **OSC Send Mode**: Choose the format for outgoing OSC messages.
+        -   **Bundle (New)**: The modern, efficient default. Sends all landmark data for a single frame in one network packet (an OSC Bundle). Recommended for new projects.
+        -   **Legacy (Old)**: Sends each piece of landmark data as a separate OSC message. This is less efficient but provides backward compatibility with older projects.
     -   **Start/Stop Buttons**: Manually start or stop sending OSC messages.
 
 ### Video Preview
@@ -110,14 +114,63 @@ The large area on the right displays the live video feed with the detected pose 
 -   It will show a "Waiting for video stream..." message on startup.
 -   The preview will begin once you press "Start Video".
 
-### OSC Remote Control
+---
+## OSC Specification
 
-The application listens for OSC messages on port `9000` for remote control. See `core/osc_listener.py` for the available commands and paths, which include:
+The application uses OSC for two purposes: sending pose data out and receiving remote control commands.
 
--   `/posecam/control/start`
--   `/posecam/control/stop`
--   `/posecam/input/select [webcam|file]`
--   `/posecam/input/file [path_to_file]`
+### Pose Data (Output)
+
+The format of the outgoing pose data depends on the **OSC Send Mode** selected in the UI.
+
+#### Bundle Mode (Default)
+
+This mode is highly efficient and recommended for all new projects. It sends all data for a single frame as one OSC Bundle.
+
+-   **Address Scheme**: `/pose/p{person_id}/{landmark_id}`
+-   **Arguments**: `(float) x`, `(float) y`, `(float) z`
+-   **Description**: Each message in the bundle represents one landmark. `person_id` is 1-based. `landmark_id` is a 0-based index corresponding to the MediaPipe Pose model.
+
+*Example bundle content for one person:*
+```
+/pose/p1/0, [0.512, 0.245, -0.876]
+/pose/p1/1, [0.523, 0.213, -0.854]
+/pose/p1/2, [0.524, 0.213, -0.854]
+... (up to landmark 32)
+```
+
+#### Legacy Mode
+
+This mode sends many individual messages per frame and is intended for backward compatibility.
+
+-   **Address Scheme**: Varies. Includes landmark data and metadata.
+-   **Description**: Sends one message for each landmark, plus several messages for metadata.
+
+*Example messages sent for a single frame:*
+```
+/framecount, (int) 1234
+/image-height, (int) 480
+/image-width, (int) 640
+/p1/head, [0.512, 0.245, -0.876]
+/p1/shoulder_l, [0.610, 0.450, -0.750]
+... (and so on for all other named landmarks)
+/numLandmarks, (int) 33
+```
+
+### Remote Control (Input)
+
+The application listens for OSC messages on port **9000** (by default) to allow for remote control.
+
+| Address | Arguments | Description |
+|---|---|---|
+| `/posecam/control/start` | (none) | Starts the main video processing loop. |
+| `/posecam/control/stop` | (none) | Stops the main video processing loop. |
+| `/posecam/control/pause` | (none) | Pauses/resumes the video processing loop. |
+| `/posecam/input/select` | `(string) source` | Changes the input source. `source` must be "webcam" or "file". |
+| `/posecam/input/file` | `(string) path` | Sets the path for the video file input. |
+| `/posecam/output/osc/ip` | `(string) ip` | Sets the destination IP for outgoing OSC data. |
+| `/posecam/output/osc/port` | `(int) port` | Sets the destination port for outgoing OSC data. |
+
 ---
 # Future Improvements
 
