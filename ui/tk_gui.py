@@ -23,7 +23,9 @@ class PoseCamGUI:
         self.ndi_name = tk.StringVar(value=self.controller.config['ndi_name'])
         self.osc_ip = tk.StringVar(value=self.controller.config['osc_ip'])
         self.osc_port = tk.StringVar(value=str(self.controller.config['osc_port']))
+        self.osc_mode = tk.StringVar(value=self.controller.config['osc_mode'])
         self.loop_video = tk.BooleanVar(value=self.controller.config['loop_video'])
+        self.draw_ndi_overlay = tk.BooleanVar(value=self.controller.config['draw_ndi_overlay'])
         self.video_file_path = tk.StringVar(value=self.controller.config.get('video_file') or "")
         self.input_source = tk.StringVar(value=self.controller.config['input'])
 
@@ -101,30 +103,43 @@ class PoseCamGUI:
         # NDI Name
         ndi_label = tk.Label(output_frame, text="NDI Stream:")
         ndi_entry = tk.Entry(output_frame, textvariable=self.ndi_name)
+        ndi_overlay_check = tk.Checkbutton(output_frame, text="Draw Overlay on NDI", variable=self.draw_ndi_overlay, command=self._on_ndi_overlay_change)
         self.btn_start_ndi = tk.Button(output_frame, text="Start", command=self.controller.start_ndi)
         self.btn_stop_ndi = tk.Button(output_frame, text="Stop", command=self.controller.stop_ndi, state=tk.DISABLED)
 
         ndi_label.grid(row=0, column=0, sticky="w", pady=2)
         ndi_entry.grid(row=1, column=0, columnspan=3, sticky="ew", pady=2)
-        self.btn_start_ndi.grid(row=2, column=1, sticky="ew")
-        self.btn_stop_ndi.grid(row=2, column=2, sticky="ew")
+        ndi_overlay_check.grid(row=2, column=0, columnspan=3, sticky="w", pady=(0, 5))
+        self.btn_start_ndi.grid(row=3, column=1, sticky="ew")
+        self.btn_stop_ndi.grid(row=3, column=2, sticky="ew")
 
         # OSC IP
         osc_ip_label = tk.Label(output_frame, text="OSC IP:")
         osc_ip_entry = tk.Entry(output_frame, textvariable=self.osc_ip)
-        osc_ip_label.grid(row=3, column=0, sticky="w", pady=(10, 2))
-        osc_ip_entry.grid(row=4, column=0, columnspan=3, sticky="ew", pady=2)
+        osc_ip_label.grid(row=4, column=0, sticky="w", pady=(10, 2))
+        osc_ip_entry.grid(row=5, column=0, columnspan=3, sticky="ew", pady=2)
 
         # OSC Port
         osc_port_label = tk.Label(output_frame, text="OSC Port:")
         osc_port_entry = tk.Entry(output_frame, textvariable=self.osc_port)
+        osc_port_label.grid(row=6, column=0, sticky="w", pady=2)
+        osc_port_entry.grid(row=7, column=0, columnspan=3, sticky="ew", pady=2)
+
+        # OSC Mode
+        osc_mode_label = tk.Label(output_frame, text="OSC Send Mode:")
+        osc_mode_label.grid(row=8, column=0, sticky="w", pady=(10, 0))
+        osc_mode_frame = tk.Frame(output_frame)
+        osc_mode_frame.grid(row=9, column=0, columnspan=3, sticky="w")
+        bundle_radio = tk.Radiobutton(osc_mode_frame, text="Bundle (New)", variable=self.osc_mode, value='bundle', command=self._on_osc_mode_change)
+        legacy_radio = tk.Radiobutton(osc_mode_frame, text="Legacy (Old)", variable=self.osc_mode, value='legacy', command=self._on_osc_mode_change)
+        bundle_radio.pack(side=tk.LEFT)
+        legacy_radio.pack(side=tk.LEFT, padx=(10,0))
+
+        # OSC Start/Stop Buttons
         self.btn_start_osc = tk.Button(output_frame, text="Start", command=self.controller.start_osc)
         self.btn_stop_osc = tk.Button(output_frame, text="Stop", command=self.controller.stop_osc, state=tk.DISABLED)
-
-        osc_port_label.grid(row=5, column=0, sticky="w", pady=2)
-        osc_port_entry.grid(row=6, column=0, columnspan=3, sticky="ew", pady=2)
-        self.btn_start_osc.grid(row=7, column=1, sticky="ew")
-        self.btn_stop_osc.grid(row=7, column=2, sticky="ew")
+        self.btn_start_osc.grid(row=10, column=1, sticky="ew", pady=(5,0))
+        self.btn_stop_osc.grid(row=10, column=2, sticky="ew", pady=(5,0))
 
         output_frame.grid_columnconfigure(0, weight=1)
         output_frame.grid_columnconfigure(1, weight=1)
@@ -158,6 +173,12 @@ class PoseCamGUI:
         try:
             self.controller.update_config('osc_port', int(self.osc_port.get()))
         except (ValueError, TypeError): pass # Ignore invalid (e.g., empty) port values
+
+    def _on_ndi_overlay_change(self):
+        self.controller.update_config('draw_ndi_overlay', self.draw_ndi_overlay.get())
+
+    def _on_osc_mode_change(self):
+        self.controller.update_config('osc_mode', self.osc_mode.get())
 
     def _on_source_change(self):
         """Called when a radio button is clicked."""
@@ -243,6 +264,8 @@ class PoseCamGUI:
         elif key == 'input':
             self.input_source.set(value)
             self._update_input_widget_states()
+        elif key == 'draw_ndi_overlay':
+            self.draw_ndi_overlay.set(value)
 
     def run(self):
         self._update_preview_loop()

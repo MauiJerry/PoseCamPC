@@ -1,3 +1,0 @@
-from .pose_detector import PoseDetector
-from .pose_detector_mediapipe import PoseDetectorMediapipe
-from .pose_detector_alphapose import PoseDetectorAlphaPose

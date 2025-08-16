@@ -1,9 +1,10 @@
 from pythonosc import dispatcher, osc_server
+import logging
 
 class OSCListener:
     def __init__(self, controller):
         self.controller = controller
-        self.port = 9000
+        self.server = None
 
     def start(self):
         disp = dispatcher.Dispatcher()
@@ -14,10 +15,19 @@ class OSCListener:
         disp.map("/posecam/input/file", self.handle_file_select)
         disp.map("/posecam/output/osc/ip", self.handle_osc_ip)
         disp.map("/posecam/output/osc/port", self.handle_osc_port)
+        
+        listen_port = self.controller.config['osc_listen_port']
+        self.server = osc_server.ThreadingOSCUDPServer(("0.0.0.0", listen_port), disp)
+        print(f"[OSC] Listener starting, listening on port {listen_port}...")
+        self.server.serve_forever()
 
-        server = osc_server.ThreadingOSCUDPServer(("0.0.0.0", self.port), disp)
-        print(f"[OSC] Listening on port {self.port}...")
-        server.serve_forever()
+    def shutdown(self):
+        if self.server:
+            print("[OSC] Shutting down listener...")
+            self.server.shutdown()
+            self.server.server_close()
+            self.server = None
+            print("[OSC] Listener shut down.")
 
     def handle_start(self, addr, *args):
         self.controller.start()
@@ -39,5 +49,3 @@ class OSCListener:
 
     def handle_osc_port(self, addr, port):
         self.controller.update_config('osc_port', int(port))
-    
-    print("[OSC] Starting listener...") 
