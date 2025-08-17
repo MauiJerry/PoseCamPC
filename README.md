@@ -127,35 +127,52 @@ The format of the outgoing pose data depends on the **OSC Send Mode** selected i
 
 This mode is highly efficient and recommended for all new projects. It sends all data for a single frame as one OSC Bundle.
 
--   **Address Scheme**: `/pose/p{person_id}/{landmark_id}`
--   **Arguments**: `(float) x`, `(float) y`, `(float) z`
--   **Description**: Each message in the bundle represents one landmark. `person_id` is 1-based. `landmark_id` is a 0-based index corresponding to the MediaPipe Pose model.
+Each message within the bundle has the following structure:
 
-*Example bundle content for one person:*
-```
-/pose/p1/0, [0.512, 0.245, -0.876]
-/pose/p1/1, [0.523, 0.213, -0.854]
-/pose/p1/2, [0.524, 0.213, -0.854]
-... (up to landmark 32)
-```
+| Part | Example | Type | Description |
+|---|---|---|---|
+| Address | `/pose/p1/0` | string | The OSC address. `p1` is the 1-based person ID. `0` is the 0-based landmark ID from the MediaPipe Pose model. |
+| Argument 1 | `0.512` | float | The normalized X coordinate of the landmark. |
+| Argument 2 | `0.245` | float | The normalized Y coordinate of the landmark. |
+| Argument 3 | `-0.876` | float | The normalized Z coordinate of the landmark. `z` represents depth, with smaller values being closer to the camera. |
+
+A single OSC bundle will contain many of these messages, one for each detected landmark (typically 33 per person).
 
 #### Legacy Mode
 
-This mode sends many individual messages per frame and is intended for backward compatibility.
+This mode sends many individual messages per frame and is intended for backward compatibility. It is less efficient than Bundle Mode. A single video frame will generate multiple OSC messages, including metadata and data for each landmark.
 
--   **Address Scheme**: Varies. Includes landmark data and metadata.
--   **Description**: Sends one message for each landmark, plus several messages for metadata.
+| Address | Example Arguments | Type | Description |
+|---|---|---|---|
+| `/framecount` | `1234` | int | The current frame number of the video stream. |
+| `/image-width` | `640` | int | The width of the processed video frame in pixels. |
+| `/image-height` | `480` | int | The height of the processed video frame in pixels. |
+| `/numLandmarks` | `33` | int | The total number of landmarks detected for a person. |
+| `/p{id}/{name}` | `[0.61, 0.45, -0.75]` | float array (x, y, z) | The coordinates for a specific landmark. `id` is the 1-based person ID. `name` is the human-readable landmark name (e.g., `shoulder_l`). |
 
-*Example messages sent for a single frame:*
-```
-/framecount, (int) 1234
-/image-height, (int) 480
-/image-width, (int) 640
-/p1/head, [0.512, 0.245, -0.876]
-/p1/shoulder_l, [0.610, 0.450, -0.750]
-... (and so on for all other named landmarks)
-/numLandmarks, (int) 33
-```
+### Landmark ID Mapping
+
+The following table maps the 0-based `landmark_id` sent in **Bundle Mode** to the corresponding body part name used by MediaPipe Pose. This is the same mapping used to generate names in **Legacy Mode**.
+
+| ID | Name | ID | Name |
+|:---|:---|:---|:---|
+| 0 | `head` | 17 | `mp_pinky_l` |
+| 1 | `mp_eye_inner_l` | 18 | `mp_pinky_r` |
+| 2 | `eye_l` | 19 | `handtip_l` |
+| 3 | `mp_eye_outer_l` | 20 | `handtip_r` |
+| 4 | `mp_eye_inner_r` | 21 | `thumb_l` |
+| 5 | `eye_r` | 22 | `thumb_r` |
+| 6 | `mp_eye_outer_r` | 23 | `hip_l` |
+| 7 | `mp_ear_l` | 24 | `hip_r` |
+| 8 | `mp_ear_r` | 25 | `knee_l` |
+| 9 | `mp_mouth_l` | 26 | `knee_r` |
+| 10 | `mp_mouth_r` | 27 | `ankle_l` |
+| 11 | `shoulder_l` | 28 | `ankle_r` |
+| 12 | `shoulder_r` | 29 | `mp_heel_l` |
+| 13 | `elbow_l` | 30 | `mp_heel_r` |
+| 14 | `elbow_r` | 31 | `foot_l` |
+| 15 | `wrist_l` | 32 | `foot_r` |
+| 16 | `wrist_r` | | |
 
 ### Remote Control (Input)
 
