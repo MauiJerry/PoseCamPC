@@ -127,16 +127,25 @@ The format of the outgoing pose data depends on the **OSC Send Mode** selected i
 
 This mode is highly efficient and recommended for all new projects. It sends all data for a single frame as one OSC Bundle.
 
-Each message within the bundle has the following structure:
+A single OSC bundle will contain a mix of metadata and landmark data messages.
+
+**Metadata Messages**
+
+| Address | Example Argument | Type | Description | Frequency |
+|---|---|---|---|---|
+| `/pose/frame_count` | `1234` | int | The current frame number of the video stream. | Every Frame |
+| `/pose/num_persons` | `1` | int | The number of skeletons detected in the frame. | Every Frame |
+| `/pose/image_width` | `640` | int | The width of the processed video frame in pixels. | Periodically (~1s) |
+| `/pose/image_height` | `480` | int | The height of the processed video frame in pixels. | Periodically (~1s) |
+
+**Landmark Data Message**
+
+For each detected landmark, a message with the following structure is added to the bundle.
 
 | Part | Example | Type | Description |
 |---|---|---|---|
-| Address | `/pose/p1/0` | string | The OSC address. `p1` is the 1-based person ID. `0` is the 0-based landmark ID from the MediaPipe Pose model. |
-| Argument 1 | `0.512` | float | The normalized X coordinate of the landmark. |
-| Argument 2 | `0.245` | float | The normalized Y coordinate of the landmark. |
-| Argument 3 | `-0.876` | float | The normalized Z coordinate of the landmark. `z` represents depth, with smaller values being closer to the camera. |
-
-A single OSC bundle will contain many of these messages, one for each detected landmark (typically 33 per person).
+| Address | `/pose/p1/0` | string | The OSC address. `p1` is the 1-based person ID. `0` is the 0-based landmark ID. |
+| Arguments | `0.512, 0.245, -0.876` | 3 floats | The normalized (X, Y, Z) coordinates of the landmark. `z` represents depth, with smaller values being closer to the camera. |
 
 #### Legacy Mode
 
