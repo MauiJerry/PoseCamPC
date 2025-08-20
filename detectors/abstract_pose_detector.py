@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 import logging
+import time
 from pythonosc import udp_client, osc_bundle_builder, osc_message_builder
+import datetime
 
 class AbstractPoseDetector(ABC):
     # This mapping is the single source of truth for converting landmark IDs to names.
@@ -26,6 +28,7 @@ class AbstractPoseDetector(ABC):
         self.latest_landmarks = []
         self.latest_results = None # To store the raw results from the backend
         self._osc_bundle_log_count = 0
+        self._osc_person_bundle_log_count = 0
 
         # State for legacy OSC mode
         self.frame_count = 0
@@ -44,9 +47,25 @@ class AbstractPoseDetector(ABC):
         if not client:
             return
 
-        bundle_builder = osc_bundle_builder.OscBundleBuilder(osc_bundle_builder.IMMEDIATELY)
+        # The timetag is an instruction for the receiver. IMMEDIATELY means process now.
+        timetag = osc_bundle_builder.IMMEDIATELY
+        bundle_builder = osc_bundle_builder.OscBundleBuilder(timetag)
 
         # --- Add metadata messages to the bundle ---
+
+        # 0a. Add a high-resolution Unix timestamp for machine use (the standard).
+        # This float value is highly efficient for calculations and is a common standard.
+        msg_timestamp = osc_message_builder.OscMessageBuilder(address="/pose/timestamp")
+        msg_timestamp.add_arg(time.time())
+        bundle_builder.add_content(msg_timestamp.build())
+
+        # 0b. Add a human-readable, machine-parsable timestamp string.
+        # Format: yyyy.mm.dd.hh.mm.ss.ms
+        now = datetime.datetime.now()
+        ts_str = now.strftime("%Y.%m.%d.%H.%M.%S") + f".{now.microsecond // 1000:03d}"
+        msg_timestamp_str = osc_message_builder.OscMessageBuilder(address="/pose/timestamp_str")
+        msg_timestamp_str.add_arg(ts_str)
+        bundle_builder.add_content(msg_timestamp_str.build())
 
         # 1. Add frame_count and num_persons to every bundle
         msg_frame_count = osc_message_builder.OscMessageBuilder(address="/pose/frame_count")
@@ -80,16 +99,39 @@ class AbstractPoseDetector(ABC):
         
         bundle = bundle_builder.build()
 
-        # Log the contents of the first two bundles for debugging purposes
+        # Log the first 2 bundles, and the first 2 bundles with person data.
+        has_person = len(self.latest_landmarks) > 0
+        should_log = False
+        log_reason_parts = []
+
+        # Condition 1: Log the first two bundles unconditionally
         if self._osc_bundle_log_count < 2:
-            logging.info(f"--- OSC Bundle Sent (Log #{self._osc_bundle_log_count + 1}) ---")
-            # The bundle is an iterable of the messages it contains
+            should_log = True
+            log_reason_parts.append(f"Overall Log #{self._osc_bundle_log_count + 1}")
+
+        # Condition 2: Log the first two bundles that contain person data
+        if has_person and self._osc_person_bundle_log_count < 2:
+            if not should_log:
+                should_log = True
+            log_reason_parts.append(f"Person Data Log #{self._osc_person_bundle_log_count + 1}")
+
+        if should_log:
+            log_reason = " | ".join(log_reason_parts)
+            logging.info(f"--- OSC Bundle Sent ({log_reason}) ---")
+            # The timetag is a property of the bundle itself. 1 means "IMMEDIATELY".
+            timetag_info = f" (1 = IMMEDIATE)" if timetag == 1 else ""
+            logging.info(f"  Timetag: {timetag}{timetag_info}")
             for msg in bundle:
-                # Round the float args for cleaner logging
-                rounded_args = [round(p, 4) for p in msg.params]
+                # Round float args for cleaner logging, but leave other types (like strings) as-is.
+                rounded_args = [round(p, 4) if isinstance(p, float) else p for p in msg.params]
                 logging.info(f"  Address: {msg.address}, Args: {rounded_args}")
             logging.info("-------------------------------------------------")
-            self._osc_bundle_log_count += 1
+
+            # Increment counters after logging
+            if self._osc_bundle_log_count < 2:
+                self._osc_bundle_log_count += 1
+            if has_person and self._osc_person_bundle_log_count < 2:
+                self._osc_person_bundle_log_count += 1
 
         try:
             client.send(bundle)

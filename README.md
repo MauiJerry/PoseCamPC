@@ -133,6 +133,8 @@ A single OSC bundle will contain a mix of metadata and landmark data messages.
 
 | Address | Example Argument | Type | Description | Frequency |
 |---|---|---|---|---|
+| `/pose/timestamp` | `1709924385.532` | float | A high-precision Unix timestamp (seconds since 1970-01-01). Ideal for machine calculations. | Every Frame |
+| `/pose/timestamp_str` | `"2024.03.08.13.59.45.532"` | string | A human-readable timestamp string in `YYYY.MM.DD.HH.MM.SS.ms` format. | Every Frame |
 | `/pose/frame_count` | `1234` | int | The current frame number of the video stream. | Every Frame |
 | `/pose/num_persons` | `1` | int | The number of skeletons detected in the frame. | Every Frame |
 | `/pose/image_width` | `640` | int | The width of the processed video frame in pixels. | Periodically (~1s) |
