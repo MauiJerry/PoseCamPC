@@ -114,6 +114,21 @@ The large area on the right displays the live video feed with the detected pose 
 -   It will show a "Waiting for video stream..." message on startup.
 -   The preview will begin once you press "Start Video".
 
+## Configuration
+
+While most common settings are available in the GUI, some core parameters are set directly in the code. The main configuration dictionary is located at the top of `core/controller.py`.
+
+One of the most important settings is `fps_limit`:
+
+-   **`fps_limit`** (int): This value serves two purposes:
+    1.  It caps the main processing loop to this framerate to conserve CPU.
+    2.  It determines how often periodic OSC metadata (like image dimensions and aspect ratio) is sent. For a value of `30`, this data is sent roughly once per second.
+
+```python
+# In core/controller.py
+'fps_limit': 30
+```
+
 ---
 ## OSC Specification
 
@@ -133,12 +148,14 @@ A single OSC bundle will contain a mix of metadata and landmark data messages.
 
 | Address | Example Argument | Type | Description | Frequency |
 |---|---|---|---|---|
-| `/pose/timestamp` | `1709924385.532` | float | A high-precision Unix timestamp (seconds since 1970-01-01). Ideal for machine calculations. | Every Frame |
-| `/pose/timestamp_str` | `"2024.03.08.13.59.45.532"` | string | A human-readable timestamp string in `YYYY.MM.DD.HH.MM.SS.ms` format. | Every Frame |
 | `/pose/frame_count` | `1234` | int | The current frame number of the video stream. | Every Frame |
 | `/pose/num_persons` | `1` | int | The number of skeletons detected in the frame. | Every Frame |
+| `/pose/timestamp` | `1709924385.532` | float | A high-precision Unix timestamp (seconds since 1970-01-01). Ideal for machine calculations. | Every Frame |
+| `/pose/timestamp_str` | `"2024.03.08.13.59.45.532"` | string | A human-readable timestamp string in `YYYY.MM.DD.HH.MM.SS.ms` format. | Periodically (~1s) |
 | `/pose/image_width` | `640` | int | The width of the processed video frame in pixels. | Periodically (~1s) |
 | `/pose/image_height` | `480` | int | The height of the processed video frame in pixels. | Periodically (~1s) |
+| `/pose/aspect_ratio` | `1.3333` | float | The calculated aspect ratio (`width / height`). | Periodically (~1s) |
+
 
 **Landmark Data Message**
 

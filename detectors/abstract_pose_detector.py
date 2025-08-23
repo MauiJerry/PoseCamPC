@@ -59,11 +59,7 @@ class AbstractPoseDetector(ABC):
         # 0b. Add a human-readable, machine-parsable timestamp string.
         # Format: yyyy.mm.dd.hh.mm.ss.ms
         now = datetime.datetime.now()
-        ts_str = now.strftime("%Y.%m.%d.%H.%M.%S") + f".{now.microsecond // 1000:03d}"
-        msg_timestamp_str = osc_message_builder.OscMessageBuilder(address="/pose/timestamp_str")
-        msg_timestamp_str.add_arg(ts_str)
-        bundle_builder.add_content(msg_timestamp_str.build())
-
+    
         # 1. Add frame_count and num_persons to every bundle
         msg_frame_count = osc_message_builder.OscMessageBuilder(address="/pose/frame_count")
         msg_frame_count.add_arg(frame_count)
@@ -76,6 +72,11 @@ class AbstractPoseDetector(ABC):
         # 2. Add other metadata periodically (e.g., every second)
         # Send on the first frame, and then every `fps_limit` frames thereafter.
         if fps_limit > 0 and (frame_count == 1 or frame_count % fps_limit == 0):
+            ts_str = now.strftime("%Y.%m.%d.%H.%M.%S") + f".{now.microsecond // 1000:03d}"
+            msg_timestamp_str = osc_message_builder.OscMessageBuilder(address="/pose/timestamp_str")
+            msg_timestamp_str.add_arg(ts_str)
+            bundle_builder.add_content(msg_timestamp_str.build())
+            
             msg_img_w = osc_message_builder.OscMessageBuilder(address="/pose/image_width")
             msg_img_w.add_arg(self.image_width)
             bundle_builder.add_content(msg_img_w.build())

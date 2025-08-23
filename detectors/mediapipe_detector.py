@@ -11,7 +11,6 @@ class PoseDetectorMediapipe(AbstractPoseDetector):
     def process_image(self, image):
         # Update state for legacy OSC
         self.image_height, self.image_width, _ = image.shape
-        self.frame_count += 1
 
         self.latest_results = self.pose.process(image)
         if self.latest_results.pose_landmarks:
