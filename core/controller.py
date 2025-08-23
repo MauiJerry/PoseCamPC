@@ -228,10 +228,10 @@ class PoseCamController:
                     if self.osc_active:
                         osc_mode = self.config['osc_mode']
                         if osc_mode == 'bundle':
-                            self.pose_detector.send_landmarks_via_osc(self.osc_client, self.config['fps_limit'])
+                            self.pose_detector.send_landmarks_via_osc(self.osc_client, self.frame_count, self.config['fps_limit'])
                         elif osc_mode == 'legacy':
                             if hasattr(self.pose_detector, 'send_legacy_landmarks_via_osc'):
-                                self.pose_detector.send_legacy_landmarks_via_osc(self.osc_client)
+                                self.pose_detector.send_legacy_landmarks_via_osc(self.osc_client, self.frame_count)
                             else:
                                 logging.warning(f"OSC mode is 'legacy' but detector {type(self.pose_detector).__name__} doesn't support it.")
 

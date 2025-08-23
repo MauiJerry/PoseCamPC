@@ -29,9 +29,6 @@ class AbstractPoseDetector(ABC):
         self.latest_results = None # To store the raw results from the backend
         self._osc_bundle_log_count = 0
         self._osc_person_bundle_log_count = 0
-
-        # State for legacy OSC mode
-        self.frame_count = 0
         self.image_height = 0
         self.image_width = 0
 
@@ -43,7 +40,7 @@ class AbstractPoseDetector(ABC):
     def draw_landmarks(self, frame):
         pass
 
-    def send_landmarks_via_osc(self, client: udp_client.SimpleUDPClient, fps_limit: int = 30):
+    def send_landmarks_via_osc(self, client: udp_client.SimpleUDPClient, frame_count: int, fps_limit: int = 30):
         if not client:
             return
 
@@ -69,7 +66,7 @@ class AbstractPoseDetector(ABC):
 
         # 1. Add frame_count and num_persons to every bundle
         msg_frame_count = osc_message_builder.OscMessageBuilder(address="/pose/frame_count")
-        msg_frame_count.add_arg(self.frame_count)
+        msg_frame_count.add_arg(frame_count)
         bundle_builder.add_content(msg_frame_count.build())
 
         msg_num_persons = osc_message_builder.OscMessageBuilder(address="/pose/num_persons")
@@ -78,7 +75,7 @@ class AbstractPoseDetector(ABC):
 
         # 2. Add other metadata periodically (e.g., every second)
         # Send on the first frame, and then every `fps_limit` frames thereafter.
-        if fps_limit > 0 and (self.frame_count == 1 or self.frame_count % fps_limit == 0):
+        if fps_limit > 0 and (frame_count == 1 or frame_count % fps_limit == 0):
             msg_img_w = osc_message_builder.OscMessageBuilder(address="/pose/image_width")
             msg_img_w.add_arg(self.image_width)
             bundle_builder.add_content(msg_img_w.build())
@@ -86,6 +83,13 @@ class AbstractPoseDetector(ABC):
             msg_img_h = osc_message_builder.OscMessageBuilder(address="/pose/image_height")
             msg_img_h.add_arg(self.image_height)
             bundle_builder.add_content(msg_img_h.build())
+
+            # Calculate and add aspect ratio if height is valid
+            if self.image_height > 0:
+                aspect_ratio = float(self.image_width) / self.image_height
+                msg_aspect_ratio = osc_message_builder.OscMessageBuilder(address="/pose/aspect_ratio")
+                msg_aspect_ratio.add_arg(aspect_ratio)
+                bundle_builder.add_content(msg_aspect_ratio.build())
 
         # --- Add landmark data ---
         for person_id, skeleton in enumerate(self.latest_landmarks):
@@ -144,14 +148,14 @@ class AbstractPoseDetector(ABC):
         """Looks up the landmark name from the class's mapping dictionary."""
         return self.pose_id_to_name.get(landmark_id, "Unknown")
 
-    def send_legacy_landmarks_via_osc(self, osc_client):
+    def send_legacy_landmarks_via_osc(self, osc_client, frame_count: int):
         """Sends landmarks using the legacy method (one message per landmark)."""
         if osc_client is None:
             return
 
         try:
             # Send metadata
-            osc_client.send_message("/framecount", self.frame_count)
+            osc_client.send_message("/framecount", frame_count)
             osc_client.send_message(f"/image-height", self.image_height)
             osc_client.send_message(f"/image-width", self.image_width)
 
