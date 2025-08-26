@@ -31,6 +31,7 @@ class AbstractPoseDetector(ABC):
         self._osc_person_bundle_log_count = 0
         self.image_height = 0
         self.image_width = 0
+        print("AbstractPoseDetector initialized.")
 
     @abstractmethod
     def process_image(self, image):
@@ -43,6 +44,10 @@ class AbstractPoseDetector(ABC):
     def send_landmarks_via_osc(self, client: udp_client.SimpleUDPClient, frame_count: int, fps_limit: int = 30):
         if not client:
             return
+        bundleStats_metaCount = 0
+        bundleStats_personCount = 0
+        bundleStats_totalMessages = 0
+        bundleStats_numLandmarks = 0
 
         # The timetag is an instruction for the receiver. IMMEDIATELY means process now.
         timetag = osc_bundle_builder.IMMEDIATELY
@@ -55,6 +60,7 @@ class AbstractPoseDetector(ABC):
         msg_timestamp = osc_message_builder.OscMessageBuilder(address="/pose/timestamp")
         msg_timestamp.add_arg(time.time())
         bundle_builder.add_content(msg_timestamp.build())
+        bundleStats_totalMessages += 1
 
         # 0b. Add a human-readable, machine-parsable timestamp string.
         # Format: yyyy.mm.dd.hh.mm.ss.ms
@@ -64,10 +70,15 @@ class AbstractPoseDetector(ABC):
         msg_frame_count = osc_message_builder.OscMessageBuilder(address="/pose/frame_count")
         msg_frame_count.add_arg(frame_count)
         bundle_builder.add_content(msg_frame_count.build())
+        bundleStats_totalMessages += 1
+        bundleStats_metaCount += 1
 
         msg_num_persons = osc_message_builder.OscMessageBuilder(address="/pose/num_persons")
         msg_num_persons.add_arg(len(self.latest_landmarks))
         bundle_builder.add_content(msg_num_persons.build())
+        bundleStats_totalMessages += 1
+        bundleStats_metaCount += 1
+
 
         # 2. Add other metadata periodically (e.g., every second)
         # Send on the first frame, and then every `fps_limit` frames thereafter.
@@ -76,14 +87,20 @@ class AbstractPoseDetector(ABC):
             msg_timestamp_str = osc_message_builder.OscMessageBuilder(address="/pose/timestamp_str")
             msg_timestamp_str.add_arg(ts_str)
             bundle_builder.add_content(msg_timestamp_str.build())
-            
+            bundleStats_totalMessages += 1
+            bundleStats_metaCount += 1
+
             msg_img_w = osc_message_builder.OscMessageBuilder(address="/pose/image_width")
             msg_img_w.add_arg(self.image_width)
             bundle_builder.add_content(msg_img_w.build())
+            bundleStats_totalMessages += 1
+            bundleStats_metaCount += 1
 
             msg_img_h = osc_message_builder.OscMessageBuilder(address="/pose/image_height")
             msg_img_h.add_arg(self.image_height)
             bundle_builder.add_content(msg_img_h.build())
+            bundleStats_totalMessages += 1
+            bundleStats_metaCount += 1
 
             # Calculate and add aspect ratio if height is valid
             if self.image_height > 0:
@@ -91,18 +108,29 @@ class AbstractPoseDetector(ABC):
                 msg_aspect_ratio = osc_message_builder.OscMessageBuilder(address="/pose/aspect_ratio")
                 msg_aspect_ratio.add_arg(aspect_ratio)
                 bundle_builder.add_content(msg_aspect_ratio.build())
+                bundleStats_totalMessages += 1
+                bundleStats_metaCount += 1
 
         # --- Add landmark data ---
         for person_id, skeleton in enumerate(self.latest_landmarks):
             if not skeleton:
                 continue
+            bundleStats_personCount +=1
             
             for landmark_id, (x, y, z) in enumerate(skeleton):
                 msg = osc_message_builder.OscMessageBuilder(address=f"/pose/p{person_id + 1}/{landmark_id}")
                 msg.add_arg(float(x)); msg.add_arg(float(y)); msg.add_arg(float(z))
                 bundle_builder.add_content(msg.build())
+                bundleStats_totalMessages += 1
+                bundleStats_numLandmarks  += 1
         
         bundle = bundle_builder.build()
+        
+        # debug output the bundleStats each frame
+        if (frame_count % 5 == 0):
+            print(f"[OSC] frame{frame_count} Bundle Stats: Persons={bundleStats_personCount} ",
+                  f"MetaMsgs={bundleStats_metaCount}", f"LandmarkMsgs={bundleStats_numLandmarks}",
+                  f"TotalMsgs={bundleStats_totalMessages} ")
 
         # Log the first 2 bundles, and the first 2 bundles with person data.
         has_person = len(self.latest_landmarks) > 0

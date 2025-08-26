@@ -1,5 +1,6 @@
 from enum import Enum
 import logging
+import os
 import cv2
 import time
 import queue
@@ -23,16 +24,19 @@ class PoseCamController:
         # Get the list of cameras on initialization
         self.available_cameras = get_available_cameras()
 
+        # Find default video file
+        default_video = self._find_default_video_file()
+
         self.config = {
-            'input': 'webcam',
-            'loop_video': False,
+            'input': 'file',
+            'loop_video': True,
             'draw_ndi_overlay': True,
             'ndi_name': 'posePC',
             'osc_ip': '127.0.0.1',
             'osc_port': 5005,
             'osc_mode': 'bundle',  # 'bundle' or 'legacy'
             'osc_listen_port': 9000,
-            'video_file': None,
+            'video_file': default_video,
             'camera_id': 0, # Default to the first camera
             'fps_limit': 30
         }
@@ -59,6 +63,27 @@ class PoseCamController:
     def set_osc_listener(self, listener):
         self.osc_listener = listener
 
+    def _find_default_video_file(self):
+        """Looks for the first video file in the ./videoSamples directory."""
+        sample_dir = 'videoSamples'
+        if not os.path.isdir(sample_dir):
+            logging.warning(f"Video samples directory not found: {sample_dir}")
+            return None
+        
+        try:
+            # Sort to get a consistent file if multiple exist
+            for filename in sorted(os.listdir(sample_dir)):
+                # A simple check to avoid hidden files, can be made more robust
+                if not filename.startswith('.'):
+                    full_path = os.path.join(sample_dir, filename)
+                    if os.path.isfile(full_path):
+                        logging.info(f"Found default video file: {full_path}")
+                        return full_path
+        except Exception as e:
+            logging.error(f"Error reading video samples directory: {e}")
+        
+        logging.warning(f"No video files found in {sample_dir}")
+        return None
 
     def update_state(self, new_state):
         logging.info(f"State change: {self.state.value} -> {new_state.value}")
@@ -75,6 +100,13 @@ class PoseCamController:
         logging.info(f"Config updated: {key} = {value}")
         if self.gui:
             self.gui.update_ui_config(key, value)
+
+    def start_all(self):
+        """Starts NDI, OSC, and the video stream in order."""
+        logging.info("Starting all services (NDI, OSC, Video)...")
+        self.start_ndi()
+        self.start_osc()
+        self.start() # This will change state to RUNNING
 
     def start(self):
         if self.state == AppState.RUNNING:

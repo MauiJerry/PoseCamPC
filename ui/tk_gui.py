@@ -48,9 +48,11 @@ class PoseCamGUI:
         controls_frame.pack(side=tk.LEFT, fill=tk.Y, padx=10, pady=10)
 
         # --- Main control buttons ---
+        self.btn_start_all = tk.Button(controls_frame, text="Start All", command=self.start_all, font=("Arial", 10, "bold"), bg="#d0f0c0")
         self.btn_start = tk.Button(controls_frame, text="Start Video", command=self.start_video)
         self.btn_pause = tk.Button(controls_frame, text="Pause Video", command=self.pause_video, state=tk.DISABLED)
         self.btn_stop = tk.Button(controls_frame, text="Stop Video", command=self.stop_video, state=tk.DISABLED)
+        self.btn_start_all.pack(pady=(5, 10), fill=tk.X)
         self.btn_start.pack(pady=5, fill=tk.X)
         self.btn_pause.pack(pady=5, fill=tk.X)
         self.btn_stop.pack(pady=5, fill=tk.X)
@@ -151,6 +153,10 @@ class PoseCamGUI:
         self.controller.shutdown()
         self.root.destroy()
 
+    def start_all(self):
+        print("[GUI] 'Start All' button clicked. Calling controller...")
+        self.controller.start_all()
+
     def start_video(self):
         print("[GUI] 'Start Video' button clicked. Calling controller...")
         self.controller.start()
@@ -243,9 +249,14 @@ class PoseCamGUI:
         is_stopped = state == AppState.STOPPED or state == AppState.READY
         is_paused = state == AppState.PAUSED
 
-        self.btn_start.config(state=tk.DISABLED if is_running or is_paused else tk.NORMAL)
-        self.btn_pause.config(state=tk.NORMAL if is_running or is_paused else tk.DISABLED)
-        self.btn_stop.config(state=tk.NORMAL if is_running or is_paused else tk.DISABLED)
+        start_enabled_state = tk.NORMAL if is_stopped else tk.DISABLED
+        pause_enabled_state = tk.NORMAL if is_running or is_paused else tk.DISABLED
+        stop_enabled_state = tk.NORMAL if is_running or is_paused else tk.DISABLED
+
+        self.btn_start_all.config(state=start_enabled_state)
+        self.btn_start.config(state=start_enabled_state)
+        self.btn_pause.config(state=pause_enabled_state)
+        self.btn_stop.config(state=stop_enabled_state)
 
     def update_ndi_state(self, active):
         """Updates NDI button states based on controller feedback."""
