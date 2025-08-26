@@ -49,13 +49,15 @@ class PoseCamGUI:
 
         # --- Main control buttons ---
         self.btn_start_all = tk.Button(controls_frame, text="Start All", command=self.start_all, font=("Arial", 10, "bold"), bg="#d0f0c0")
+        self.btn_stop_all = tk.Button(controls_frame, text="Stop All", command=self.stop_all, font=("Arial", 10, "bold"), bg="#f0c0c0", state=tk.DISABLED)
         self.btn_start = tk.Button(controls_frame, text="Start Video", command=self.start_video)
-        self.btn_pause = tk.Button(controls_frame, text="Pause Video", command=self.pause_video, state=tk.DISABLED)
         self.btn_stop = tk.Button(controls_frame, text="Stop Video", command=self.stop_video, state=tk.DISABLED)
-        self.btn_start_all.pack(pady=(5, 10), fill=tk.X)
+        self.btn_pause = tk.Button(controls_frame, text="Pause Video", command=self.pause_video, state=tk.DISABLED)
+        self.btn_start_all.pack(pady=(5, 2), fill=tk.X)
+        self.btn_stop_all.pack(pady=(2, 10), fill=tk.X)
         self.btn_start.pack(pady=5, fill=tk.X)
-        self.btn_pause.pack(pady=5, fill=tk.X)
         self.btn_stop.pack(pady=5, fill=tk.X)
+        self.btn_pause.pack(pady=5, fill=tk.X)
 
         # --- Video Preview Canvas ---
         preview_frame = tk.LabelFrame(self.root, text="Preview", padx=5, pady=5)
@@ -167,7 +169,11 @@ class PoseCamGUI:
 
     def stop_video(self):
         print("[GUI] 'Stop Video' button clicked. Calling controller...")
-        self.controller.stop()
+        self.controller.stop_video_stream()
+
+    def stop_all(self):
+        print("[GUI] 'Stop All' button clicked. Calling controller...")
+        self.controller.stop() # controller.stop() is the "stop all" function
 
     def _on_ndi_name_change(self, *args):
         self.controller.update_config('ndi_name', self.ndi_name.get())
@@ -249,14 +255,23 @@ class PoseCamGUI:
         is_stopped = state == AppState.STOPPED or state == AppState.READY
         is_paused = state == AppState.PAUSED
 
+        # Determine button states
         start_enabled_state = tk.NORMAL if is_stopped else tk.DISABLED
-        pause_enabled_state = tk.NORMAL if is_running or is_paused else tk.DISABLED
         stop_enabled_state = tk.NORMAL if is_running or is_paused else tk.DISABLED
+        pause_enabled_state = tk.NORMAL if is_running or is_paused else tk.DISABLED
 
+        # Apply states to buttons
         self.btn_start_all.config(state=start_enabled_state)
+        self.btn_stop_all.config(state=stop_enabled_state)
         self.btn_start.config(state=start_enabled_state)
-        self.btn_pause.config(state=pause_enabled_state)
         self.btn_stop.config(state=stop_enabled_state)
+
+        # Update pause button to toggle text between "Pause" and "Continue"
+        self.btn_pause.config(state=pause_enabled_state)
+        if is_paused:
+            self.btn_pause.config(text="Continue Video")
+        else:
+            self.btn_pause.config(text="Pause Video")
 
     def update_ndi_state(self, active):
         """Updates NDI button states based on controller feedback."""

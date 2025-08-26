@@ -118,13 +118,21 @@ class PoseCamController:
         self.update_state(AppState.RUNNING)
 
     def stop(self):
-        logging.info("Stopping video stream...")
+        logging.info("Stopping all services (Video, NDI, OSC)...")
         # The run() loop will see the state change and release resources.
         self.update_state(AppState.STOPPED)
 
         # As a safety measure, also stop the outputs when master stop is called
         self.stop_osc()
         self.stop_ndi()
+
+    def stop_video_stream(self):
+        """Stops only the video stream, leaving NDI/OSC active."""
+        if self.state in [AppState.STOPPED, AppState.READY]:
+            logging.warning("Stop video stream command issued, but already stopped.")
+            return
+        logging.info("Stopping video stream only...")
+        self.update_state(AppState.STOPPED)
 
     def start_osc(self):
         if self.osc_client:
@@ -283,8 +291,8 @@ class PoseCamController:
                     self.send_video_via_ndi(frame)
                 else:
                     # This is a normal end-of-stream event.
-                    logging.info("End of video stream. Stopping.")
-                    self.stop()
+                    logging.info("End of video stream. Stopping video stream.")
+                    self.stop_video_stream()
                     continue
 
                 # Frame rate limiting
