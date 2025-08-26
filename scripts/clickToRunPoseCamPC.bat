@@ -19,4 +19,4 @@ if errorlevel 1 (
 python poseCamPC.py
 
 echo PoseCamPC exited. waiting to close terminal window
-pause
+rem pause
