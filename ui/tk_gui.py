@@ -28,6 +28,7 @@ class PoseCamGUI:
         self.draw_ndi_overlay = tk.BooleanVar(value=self.controller.config['draw_ndi_overlay'])
         self.video_file_path = tk.StringVar(value=self.controller.config.get('video_file') or "")
         self.input_source = tk.StringVar(value=self.controller.config['input'])
+        self.video_info_text = tk.StringVar(value="")
 
         # Add traces to automatically update the controller when the user types
         self.ndi_name.trace_add("write", self._on_ndi_name_change)
@@ -62,6 +63,7 @@ class PoseCamGUI:
         # --- Video Preview Canvas ---
         preview_frame = tk.LabelFrame(self.root, text="Preview", padx=5, pady=5)
         preview_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=10, pady=10)
+
         self.preview_canvas = tk.Canvas(preview_frame, bg="black", width=640, height=480)
         self.preview_canvas.pack(fill=tk.BOTH, expand=True)
         self.preview_canvas_text_id = self.preview_canvas.create_text(
@@ -97,6 +99,10 @@ class PoseCamGUI:
         # Video looping checkbox
         self.loop_check = tk.Checkbutton(input_frame, text="Loop Video", variable=self.loop_video, command=self._on_loop_change)
         self.loop_check.grid(row=2, column=2, sticky='w', pady=5)
+
+        # Video info label
+        info_label = tk.Label(input_frame, textvariable=self.video_info_text, anchor='w', justify=tk.LEFT)
+        info_label.grid(row=3, column=0, columnspan=3, sticky='w', pady=(5,0))
 
         input_frame.grid_columnconfigure(2, weight=1)
 
@@ -292,6 +298,17 @@ class PoseCamGUI:
             self._update_input_widget_states()
         elif key == 'draw_ndi_overlay':
             self.draw_ndi_overlay.set(value)
+
+    def update_video_info(self, width, height):
+        """Updates the label with video resolution."""
+        if width > 0 and height > 0:
+            self.video_info_text.set(f"Input: {width}x{height}")
+        else:
+            self.clear_video_info()
+
+    def clear_video_info(self):
+        """Clears the video resolution label."""
+        self.video_info_text.set("")
 
     def run(self):
         self._update_preview_loop()

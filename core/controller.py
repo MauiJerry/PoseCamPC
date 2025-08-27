@@ -24,8 +24,9 @@ class PoseCamController:
         # Get the list of cameras on initialization
         self.available_cameras = get_available_cameras()
 
-        # Find default video file
+        # Find default video file and camera
         default_video = self._find_default_video_file()
+        default_camera_id = self._find_default_camera_id()
 
         self.config = {
             'input': 'file',
@@ -37,7 +38,7 @@ class PoseCamController:
             'osc_mode': 'bundle',  # 'bundle' or 'legacy'
             'osc_listen_port': 9000,
             'video_file': default_video,
-            'camera_id': 0, # Default to the first camera
+            'camera_id': default_camera_id, # Use the determined default camera
             'fps_limit': 30
         }
         self.video_capture = None
@@ -84,6 +85,29 @@ class PoseCamController:
         
         logging.warning(f"No video files found in {sample_dir}")
         return None
+
+    def _find_default_camera_id(self):
+        """
+        Finds the preferred default camera.
+        Prefers cameras whose name starts with "USB", otherwise falls back to the first available.
+        """
+        if not self.available_cameras:
+            logging.warning("No cameras found. Defaulting camera_id to 0.")
+            return 0
+
+        # Sort by camera ID to ensure consistent ordering
+        sorted_cameras = sorted(self.available_cameras.items())
+
+        # Look for a USB camera first
+        for cam_id, cam_name in sorted_cameras:
+            if cam_name.lower().startswith("usb"):
+                logging.info(f"Found preferred USB camera: '{cam_name}' (ID: {cam_id})")
+                return cam_id
+        
+        # If no USB camera is found, fall back to the first one in the list
+        first_cam_id, first_cam_name = sorted_cameras[0]
+        logging.info(f"No USB camera found. Defaulting to first available: '{first_cam_name}' (ID: {first_cam_id})")
+        return first_cam_id
 
     def update_state(self, new_state):
         logging.info(f"State change: {self.state.value} -> {new_state.value}")
@@ -250,8 +274,15 @@ class PoseCamController:
                         if self.config['input'] == 'file':
                             logging.warning("Hint: The file may be corrupt or use a codec incompatible with this OpenCV backend.")
                         self.stop()
+                        if self.gui:
+                            self.gui.clear_video_info()
                         continue
-
+                    else: # Successfully opened
+                        width = int(self.video_capture.get(cv2.CAP_PROP_FRAME_WIDTH))
+                        height = int(self.video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                        if self.gui:
+                            self.gui.update_video_info(width, height)
+                            
                 start_time = time.perf_counter()
 
                 frame = self.capture_frame()
@@ -308,6 +339,8 @@ class PoseCamController:
                     logging.info("Releasing video stream in background thread...")
                     self.video_capture.release()
                     self.video_capture = None
+                    if self.gui:
+                        self.gui.clear_video_info()
                 # Yield the CPU when idle
                 time.sleep(0.05)
 
