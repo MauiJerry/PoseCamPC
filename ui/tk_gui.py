@@ -193,6 +193,7 @@ class PoseCamGUI:
         except (ValueError, TypeError): pass # Ignore invalid (e.g., empty) port values
 
     def _on_ndi_overlay_change(self):
+        print("Change ndi overlay", self.draw_ndi_overlay.get())
         self.controller.update_config('draw_ndi_overlay', self.draw_ndi_overlay.get())
 
     def _on_osc_mode_change(self):

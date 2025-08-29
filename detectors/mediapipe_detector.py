@@ -26,5 +26,6 @@ class PoseDetectorMediapipe(AbstractPoseDetector):
 
     def draw_landmarks(self, frame):
         # Use the latest results from process_image to avoid reprocessing
+        # print("in mediapipe, draw landmarks")
         if self.latest_results and self.latest_results.pose_landmarks:
             self.mp_draw.draw_landmarks(frame, self.latest_results.pose_landmarks, self.mp_pose.POSE_CONNECTIONS)

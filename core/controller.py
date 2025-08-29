@@ -308,7 +308,8 @@ class PoseCamController:
 
                     # Create a frame for the local preview that *always* has the overlay
                     preview_frame = frame.copy()
-                    self.pose_detector.draw_landmarks(preview_frame)
+                    if self.config['draw_ndi_overlay']:
+                        self.pose_detector.draw_landmarks(preview_frame)
                     try:
                         self.preview_frame_queue.put_nowait(preview_frame)
                     except queue.Full:
@@ -316,7 +317,10 @@ class PoseCamController:
 
                     # Conditionally draw landmarks on the original frame for NDI output
                     if self.config['draw_ndi_overlay']:
+                        # print("draw - overlay on")
                         self.pose_detector.draw_landmarks(frame)
+                    # else:
+                    #     print("draw overlay off")
                     
                     # Send the (conditionally modified) frame to NDI
                     self.send_video_via_ndi(frame)
