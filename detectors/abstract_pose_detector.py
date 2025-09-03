@@ -164,7 +164,9 @@ class AbstractPoseDetector(ABC):
                 continue
             bundleStats_personCount +=1
             
-            for landmark_id, (x, y, z) in enumerate(skeleton):
+            # the impl should include xyz + visibility
+            # at this time we dont send vis on thru OSC but might in future
+            for landmark_id, (x, y, z, visiblity) in enumerate(skeleton):
                 msg = osc_message_builder.OscMessageBuilder(address=f"/pose/p{person_id + 1}/{landmark_id}")
                 msg.add_arg(float(x)); msg.add_arg(float(y)); msg.add_arg(float(z))
                 bundle_builder.add_content(msg.build())

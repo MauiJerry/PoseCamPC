@@ -21,7 +21,7 @@ class PoseDetectorMediapipe(AbstractPoseDetector):
         if self.latest_results.pose_landmarks:
             # Wrap the single skeleton in a list to conform to the base class contract
             skeleton = [
-                (lm.x, lm.y, lm.z)
+                (lm.x, lm.y, lm.z, lm.visibility)
                 for lm in self.latest_results.pose_landmarks.landmark
             ]
             self.latest_landmarks = [skeleton]
