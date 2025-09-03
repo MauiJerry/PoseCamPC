@@ -21,6 +21,9 @@ class PoseCamController:
         self.pose_detector = pose_detector
         self.state = AppState.INIT
         
+        # Save the landmark map to a CSV file on startup
+        self.pose_detector.save_landmark_map_to_csv()
+
         # Get the list of cameras on initialization
         self.available_cameras = get_available_cameras()
 

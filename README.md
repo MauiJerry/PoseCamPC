@@ -180,24 +180,38 @@ This mode sends many individual messages per frame and is intended for backward 
 
 ### Landmark ID Mapping
 
-The following table maps the 0-based `landmark_id` sent in **Bundle Mode** to the corresponding body part name used by MediaPipe Pose. This is the same mapping used to generate names in **Legacy Mode**.
+To help you interpret the landmark data, the application provides the ID-to-name mapping in several ways:
+
+1.  **`landmark_idname.csv` File**:
+    Upon starting, the application automatically generates a file named `landmark_idname.csv` in its root directory. This file contains the definitive mapping of each numerical `landmark_id` to its corresponding string `name` (e.g., `0,nose`). This is the primary reference for your client application.
+
+2.  **`/pose/landmark_names` OSC Message**:
+    When using the `bundle` mode, the application periodically sends an OSC message to the address `/pose/landmark_names`. The arguments of this message are an ordered list of all landmark names. The index of each name in the list corresponds to its `landmark_id`. This allows a client to build its mapping table dynamically.
+
+#### TouchDesigner Integration (`@landmark_names_td.csv`)
+
+For users integrating with TouchDesigner, a supplementary file named `@landmark_names_td.csv` is provided. This file serves as a helpful cross-reference, mapping the landmark index to both the official MediaPipe name and the specific channel names used within our TouchDesigner projects. This can simplify the process of routing OSC data to the correct parameters.
+
+---
+
+The following table maps the 0-based `landmark_id` sent in **Bundle Mode** to the corresponding body part name. This is the same mapping used to generate names in **Legacy Mode** and is written to `landmark_idname.csv`.
 
 | ID | Name | ID | Name |
 |:---|:---|:---|:---|
-| 0 | `head` | 17 | `mp_pinky_l` |
-| 1 | `mp_eye_inner_l` | 18 | `mp_pinky_r` |
+| 0 | `nose` | 17 | `pinky_l` |
+| 1 | `eye_inner_l` | 18 | `pinky_r` |
 | 2 | `eye_l` | 19 | `handtip_l` |
-| 3 | `mp_eye_outer_l` | 20 | `handtip_r` |
-| 4 | `mp_eye_inner_r` | 21 | `thumb_l` |
+| 3 | `eye_outer_l` | 20 | `handtip_r` |
+| 4 | `eye_inner_r` | 21 | `thumb_l` |
 | 5 | `eye_r` | 22 | `thumb_r` |
-| 6 | `mp_eye_outer_r` | 23 | `hip_l` |
-| 7 | `mp_ear_l` | 24 | `hip_r` |
-| 8 | `mp_ear_r` | 25 | `knee_l` |
-| 9 | `mp_mouth_l` | 26 | `knee_r` |
-| 10 | `mp_mouth_r` | 27 | `ankle_l` |
+| 6 | `eye_outer_r` | 23 | `hip_l` |
+| 7 | `ear_l` | 24 | `hip_r` |
+| 8 | `ear_r` | 25 | `knee_l` |
+| 9 | `mouth_l` | 26 | `knee_r` |
+| 10 | `mouth_r` | 27 | `ankle_l` |
 | 11 | `shoulder_l` | 28 | `ankle_r` |
-| 12 | `shoulder_r` | 29 | `mp_heel_l` |
-| 13 | `elbow_l` | 30 | `mp_heel_r` |
+| 12 | `shoulder_r` | 29 | `heel_l` |
+| 13 | `elbow_l` | 30 | `heel_r` |
 | 14 | `elbow_r` | 31 | `foot_l` |
 | 15 | `wrist_l` | 32 | `foot_r` |
 | 16 | `wrist_r` | | |

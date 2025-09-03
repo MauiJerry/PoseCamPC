@@ -2,29 +2,44 @@ from abc import ABC, abstractmethod
 import logging
 import time
 from pythonosc import udp_client, osc_bundle_builder, osc_message_builder
+import csv
 import datetime
 
 class AbstractPoseDetector(ABC):
-    # This mapping is the single source of truth for converting landmark IDs to names.
-    # It is used by the legacy OSC mode and documented in the README for the bundle mode.
-    pose_id_to_name = {
-        0: 'head', 1: 'mp_eye_inner_l', 2: 'eye_l', 3: 'mp_eye_outer_l',
-        4: 'mp_eye_inner_r', 5: 'eye_r', 6: 'mp_eye_outer_r', 7: 'mp_ear_l',
-        8: 'mp_ear_r', 9: 'mp_mouth_l', 10: 'mp_mouth_r', 11: 'shoulder_l',
-        12: 'shoulder_r', 13: 'elbow_l', 14: 'elbow_r', 15: 'wrist_l',
-        16: 'wrist_r', 17: 'mp_pinky_l', 18: 'mp_pinky_r', 19: 'handtip_l',
-        20: 'handtip_r', 21: 'thumb_l', 22: 'thumb_r', 23: 'hip_l',
-        24: 'hip_r', 25: 'knee_l', 26: 'knee_r', 27: 'ankle_l',
-        28: 'ankle_r', 29: 'mp_heel_l', 30: 'mp_heel_r', 31: 'foot_l',
-        32: 'foot_r'
-    }
+    # # This mapping is the single source of truth for converting landmark IDs to names.
+    # # It is used by the legacy OSC mode and documented in the README for the bundle mode.
+    # pose_id_to_name = {
+    #     0: 'head', 1: 'mp_eye_inner_l', 2: 'eye_l', 3: 'mp_eye_outer_l',
+    #     4: 'mp_eye_inner_r', 5: 'eye_r', 6: 'mp_eye_outer_r', 7: 'mp_ear_l',
+    #     8: 'mp_ear_r', 9: 'mp_mouth_l', 10: 'mp_mouth_r', 11: 'shoulder_l',
+    #     12: 'shoulder_r', 13: 'elbow_l', 14: 'elbow_r', 15: 'wrist_l',
+    #     16: 'wrist_r', 17: 'mp_pinky_l', 18: 'mp_pinky_r', 19: 'handtip_l',
+    #     20: 'handtip_r', 21: 'thumb_l', 22: 'thumb_r', 23: 'hip_l',
+    #     24: 'hip_r', 25: 'knee_l', 26: 'knee_r', 27: 'ankle_l',
+    #     28: 'ankle_r', 29: 'mp_heel_l', 30: 'mp_heel_r', 31: 'foot_l',
+    #     32: 'foot_r'
+    # }
+    
 
     def __init__(self):
         """
         Initializes the detector.
         self.latest_landmarks is now a list of skeletons, where each skeleton is a list of landmarks.
         e.g., [ [(x1,y1,z1), (x2,y2,z2), ...], [(x1,y1,z1), ...] ]
+        defines the pose_id_to_name as instance variable so concrete classes can over ride if desired
         """
+        self.pose_id_to_name = {
+            0: 'nose', 1: 'eye_inner_l', 2: 'eye_l', 3: 'eye_outer_l',
+            4: 'eye_inner_r', 5: 'eye_r', 6: 'eye_outer_r', 7: 'ear_l',
+            8: 'ear_r', 9: 'mouth_l', 10: 'mouth_r', 11: 'shoulder_l',
+            12: 'shoulder_r', 13: 'elbow_l', 14: 'elbow_r', 15: 'wrist_l',
+            16: 'wrist_r', 17: 'pinky_l', 18: 'pinky_r', 19: 'handtip_l',
+            20: 'handtip_r', 21: 'thumb_l', 22: 'thumb_r', 23: 'hip_l',
+            24: 'hip_r', 25: 'knee_l', 26: 'knee_r', 27: 'ankle_l',
+            28: 'ankle_r', 29: 'heel_l', 30: 'heel_r', 31: 'foot_l',
+            32: 'foot_r'
+        }
+        # A list of skeletons, where each skeleton is a list of (x, y, z) tuples
         self.latest_landmarks = []
         self.latest_results = None # To store the raw results from the backend
         self._osc_bundle_log_count = 0
@@ -40,6 +55,26 @@ class AbstractPoseDetector(ABC):
     @abstractmethod
     def draw_landmarks(self, frame):
         pass
+
+    def save_landmark_map_to_csv(self, filename="landmark_idname.csv"):
+        """Saves the current landmark ID-to-name mapping to a CSV file."""
+        if not self.pose_id_to_name:
+            logging.warning("No landmark name map available to save.")
+            return
+
+        try:
+            # Ensure the names are written in the correct order of their IDs
+            sorted_items = sorted(self.pose_id_to_name.items())
+            
+            with open(filename, 'w', newline='') as csvfile:
+                writer = csv.writer(csvfile)
+                writer.writerow(['id', 'name'])  # Write header
+                for landmark_id, landmark_name in sorted_items:
+                    writer.writerow([landmark_id, landmark_name])
+            
+            logging.info(f"Landmark ID-to-name map successfully saved to {filename}")
+        except Exception as e:
+            logging.error(f"Failed to save landmark map to {filename}: {e}")
 
     def send_landmarks_via_osc(self, client: udp_client.SimpleUDPClient, frame_count: int, fps_limit: int = 30):
         if not client:
@@ -111,6 +146,18 @@ class AbstractPoseDetector(ABC):
                 bundleStats_totalMessages += 1
                 bundleStats_metaCount += 1
 
+            # Add the landmark name mapping.
+            # This sends a list of strings, where the index corresponds to the landmark ID.
+            if self.pose_id_to_name:
+                # Ensure the names are sent in the correct order of their IDs
+                sorted_names = [self.pose_id_to_name[i] for i in sorted(self.pose_id_to_name.keys())]
+                msg_name_map = osc_message_builder.OscMessageBuilder(address="/pose/landmark_names")
+                for name in sorted_names:
+                    msg_name_map.add_arg(name)
+                bundle_builder.add_content(msg_name_map.build())
+                bundleStats_totalMessages += 1
+                bundleStats_metaCount += 1
+
         # --- Add landmark data ---
         for person_id, skeleton in enumerate(self.latest_landmarks):
             if not skeleton:
@@ -173,10 +220,6 @@ class AbstractPoseDetector(ABC):
 
     # --- Methods for Legacy OSC Mode ---
 
-    def get_landmark_name(self, landmark_id):
-        """Looks up the landmark name from the class's mapping dictionary."""
-        return self.pose_id_to_name.get(landmark_id, "Unknown")
-
     def send_legacy_landmarks_via_osc(self, osc_client, frame_count: int):
         """Sends landmarks using the legacy method (one message per landmark)."""
         if osc_client is None:
@@ -192,7 +235,8 @@ class AbstractPoseDetector(ABC):
             if self.latest_landmarks and self.latest_landmarks[0]:
                 skeleton = self.latest_landmarks[0]
                 for idx, (x, y, z) in enumerate(skeleton):
-                    osc_client.send_message(f"/p1/{self.get_landmark_name(idx)}", [float(x), float(y), float(z)])
+                    landmark_name = self.pose_id_to_name.get(idx, "Unknown")
+                    osc_client.send_message(f"/p1/{landmark_name}", [float(x), float(y), float(z)])
                 osc_client.send_message(f"/numLandmarks", len(skeleton))
         except Exception as e:
             print(f"[OSC-Legacy] Error sending message: {e}")

@@ -4,10 +4,15 @@ from .abstract_pose_detector import AbstractPoseDetector
 class PoseDetectorMediapipe(AbstractPoseDetector):
     def __init__(self):
         super().__init__()
-        self.mp_pose = mp.pose
-        self.pose = self.mp_pose.Pose()
-        self.mp_draw = mp.drawing_utils
-
+        self.pose = mp.pose.Pose()
+ 
+        # Override the default mapping with the one from MediaPipe's PoseLandmark enum.
+        # This ensures the names are the "source of truth" from the library itself.
+        self.pose_id_to_name = {
+            landmark.value: landmark.name.lower()
+            for landmark in mp.pose.PoseLandmark
+        }
+ 
     def process_image(self, image):
         # Update state for legacy OSC
         self.image_height, self.image_width, _ = image.shape
@@ -28,4 +33,4 @@ class PoseDetectorMediapipe(AbstractPoseDetector):
         # Use the latest results from process_image to avoid reprocessing
         # print("in mediapipe, draw landmarks")
         if self.latest_results and self.latest_results.pose_landmarks:
-            self.mp_draw.draw_landmarks(frame, self.latest_results.pose_landmarks, self.mp_pose.POSE_CONNECTIONS)
+            mp.drawing_utils.draw_landmarks(frame, self.latest_results.pose_landmarks, mp.pose.POSE_CONNECTIONS)
