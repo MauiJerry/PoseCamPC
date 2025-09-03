@@ -1,0 +1,35 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# any videoSamples
+videoSamples/
+
+# Virtual environment
+.venv/
+env/
+venv/
+
+ndi/
+dist/
+build/
+.git/
+videoSamples/
+
+# pyenv local version file
+.python-version
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+*.egg
+.eggs/
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# VSCode settings
+.vscode/
