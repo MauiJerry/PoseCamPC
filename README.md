@@ -92,6 +92,16 @@ This section determines where the video comes from.
 -   **File -> Select... Button**: When "File" is selected, click this to open a file browser and choose a video file. The path of the selected file will appear in the text box next to it.
 -   **Loop Video Checkbox**: If a video file is selected, checking this box will cause the video to loop automatically when it reaches the end.
 
+### Pose Model
+
+This section allows you to choose the underlying AI model for pose detection. The application must be stopped to change models.
+
+-   **Pose Model Dropdown**: Select which pose detection model to use.
+    -   **MediaPipe Pose (Default)**: A balanced, single-person model from Google with 33 landmarks.
+    -   **MediaPipe Pose (Multi)**: The same model, but structured to handle multiple people if the underlying library supports it in the future.
+    -   **YOLOv8 (Simple)**: A fast, multi-person model with 17 landmarks (COCO standard). This version uses a simple, high-level API.
+    -   **YOLOv8 (Complex)**: The same YOLOv8 model, but with more exposed parameters for fine-tuning detection performance.
+
 ### Output Settings
 
 This section configures the NDI and OSC data streams. These can be started and stopped independently of the main video stream.
@@ -155,6 +165,7 @@ A single OSC bundle will contain a mix of metadata and landmark data messages.
 | `/pose/image_width` | `640` | int | The width of the processed video frame in pixels. | Periodically (~1s) |
 | `/pose/image_height` | `480` | int | The height of the processed video frame in pixels. | Periodically (~1s) |
 | `/pose/aspect_ratio` | `1.3333` | float | The calculated aspect ratio (`width / height`). | Periodically (~1s) |
+| `/pose/model_name` | `"MediaPipe Pose"` | string | The name of the active pose detection model. | Periodically (~1s) |
 
 
 **Landmark Data Message**
@@ -183,7 +194,7 @@ This mode sends many individual messages per frame and is intended for backward 
 To help you interpret the landmark data, the application provides the ID-to-name mapping in several ways:
 
 1.  **`landmark_idname.csv` File**:
-    Upon starting, the application automatically generates a file named `landmark_idname.csv` in its root directory. This file contains the definitive mapping of each numerical `landmark_id` to its corresponding string `name` (e.g., `0,nose`). This is the primary reference for your client application.
+    Upon starting or changing models, the application automatically generates a file named `landmark_idname.csv` in its root directory. This file contains the definitive mapping for the **currently selected model**. This is the primary reference for your client application.
 
 2.  **`/pose/landmark_names` OSC Message**:
     When using the `bundle` mode, the application periodically sends an OSC message to the address `/pose/landmark_names`. The arguments of this message are an ordered list of all landmark names. The index of each name in the list corresponds to its `landmark_id`. This allows a client to build its mapping table dynamically.
@@ -194,7 +205,10 @@ For users integrating with TouchDesigner, a supplementary file named `@landmark_
 
 ---
 
-The following table maps the 0-based `landmark_id` sent in **Bundle Mode** to the corresponding body part name. This is the same mapping used to generate names in **Legacy Mode** and is written to `landmark_idname.csv`.
+The landmark maps depend on the model selected.
+
+#### MediaPipe Landmark Map (33 Landmarks)
+Used by `MediaPipe Pose` and `MediaPipe Pose (Multi)` models.
 
 | ID | Name | ID | Name |
 |:---|:---|:---|:---|
@@ -215,6 +229,22 @@ The following table maps the 0-based `landmark_id` sent in **Bundle Mode** to th
 | 14 | `elbow_r` | 31 | `foot_l` |
 | 15 | `wrist_l` | 32 | `foot_r` |
 | 16 | `wrist_r` | | |
+
+#### COCO Landmark Map (17 Landmarks)
+Used by `YOLOv8 (Simple)` and `YOLOv8 (Complex)` models.
+
+| ID | Name | ID | Name |
+|:---|:---|:---|:---|
+| 0 | `nose` | 9 | `wrist_l` |
+| 1 | `eye_l` | 10 | `wrist_r` |
+| 2 | `eye_r` | 11 | `hip_l` |
+| 3 | `ear_l` | 12 | `hip_r` |
+| 4 | `ear_r` | 13 | `knee_l` |
+| 5 | `shoulder_l` | 14 | `knee_r` |
+| 6 | `shoulder_r` | 15 | `ankle_l` |
+| 7 | `elbow_l` | 16 | `ankle_r` |
+| 8 | `elbow_r` | | |
+
 
 ### Remote Control (Input)
 
