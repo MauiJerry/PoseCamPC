@@ -39,6 +39,7 @@ class AbstractPoseDetector(ABC):
             28: 'ankle_r', 29: 'heel_l', 30: 'heel_r', 31: 'foot_l',
             32: 'foot_r'
         }
+        self.model_name = "AbstractDetector"
         # A list of skeletons, where each skeleton is a list of (x, y, z) tuples
         self.latest_landmarks = []
         self.latest_results = None # To store the raw results from the backend
@@ -145,6 +146,13 @@ class AbstractPoseDetector(ABC):
                 bundle_builder.add_content(msg_aspect_ratio.build())
                 bundleStats_totalMessages += 1
                 bundleStats_metaCount += 1
+
+            # Add model name
+            msg_model_name = osc_message_builder.OscMessageBuilder(address="/pose/model_name")
+            msg_model_name.add_arg(self.model_name)
+            bundle_builder.add_content(msg_model_name.build())
+            bundleStats_totalMessages += 1
+            bundleStats_metaCount += 1
 
             # Add the landmark name mapping.
             # This sends a list of strings, where the index corresponds to the landmark ID.

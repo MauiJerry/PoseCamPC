@@ -4,6 +4,7 @@ from .abstract_pose_detector import AbstractPoseDetector
 class MultiPersonPoseDetector(AbstractPoseDetector):
     def __init__(self):
         super().__init__()
+        self.model_name = "MediaPipe Pose"
         self.mp_pose = mp.pose
         self.pose = self.mp_pose.Pose(enable_segmentation=False, min_detection_confidence=0.5, min_tracking_confidence=0.5)
         self.mp_draw = mp.drawing_utils
@@ -15,7 +16,7 @@ class MultiPersonPoseDetector(AbstractPoseDetector):
             # MediaPipe's Pose solution detects one person. Wrap the skeleton in a list
             # to conform to the base class contract for multi-person data structure.
             skeleton = [
-                (lm.x, lm.y, lm.z)
+                (lm.x, lm.y, lm.z, lm.visibility)
                 for lm in self.latest_results.pose_landmarks.landmark
             ]
             self.latest_landmarks = [skeleton]

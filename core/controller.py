@@ -17,12 +17,18 @@ class AppState(Enum):
     STOPPED = 'STOPPED'
 
 class PoseCamController:
-    def __init__(self, pose_detector):
-        self.pose_detector = pose_detector
+    def __init__(self, available_detectors):
+        self.available_detectors = available_detectors
         self.state = AppState.INIT
-        
-        # Save the landmark map to a CSV file on startup
-        self.pose_detector.save_landmark_map_to_csv()
+
+        # Default config values
+        default_detector_name = "MediaPipe Pose"
+        if default_detector_name not in self.available_detectors:
+            # Fallback if the default isn't present for some reason
+            default_detector_name = list(self.available_detectors.keys())[0]
+
+        # This will be instantiated based on the config
+        self.pose_detector = None
 
         # Get the list of cameras on initialization
         self.available_cameras = get_available_cameras()
@@ -42,8 +48,13 @@ class PoseCamController:
             'osc_listen_port': 9000,
             'video_file': default_video,
             'camera_id': default_camera_id, # Use the determined default camera
-            'fps_limit': 30
+            'fps_limit': 30,
+            'detector_model': default_detector_name
         }
+
+        self._initialize_detector()
+        self.pose_detector.save_landmark_map_to_csv()
+
         self.video_capture = None
         self.osc_client = None
         self.ndi_sender = None
@@ -60,9 +71,13 @@ class PoseCamController:
 
     def set_gui(self, gui):
         self.gui = gui
-        # After setting the GUI, immediately inform it of the available cameras
+        # After setting the GUI, immediately inform it of available devices and models
         if self.gui:
             self.gui.update_camera_list(self.available_cameras)
+            self.gui.update_detector_list(
+                detector_names=list(self.available_detectors.keys()),
+                current_detector_name=self.config['detector_model']
+            )
 
     def set_osc_listener(self, listener):
         self.osc_listener = listener
@@ -112,6 +127,24 @@ class PoseCamController:
         logging.info(f"No USB camera found. Defaulting to first available: '{first_cam_name}' (ID: {first_cam_id})")
         return first_cam_id
 
+    def _initialize_detector(self):
+        """Instantiates or re-instantiates the pose detector based on the current config."""
+        model_name = self.config.get('detector_model')
+        if model_name not in self.available_detectors:
+            logging.error(f"Detector model '{model_name}' not found in available detectors. Halting.")
+            # This is a critical error, as we can't proceed without a valid detector.
+            raise ValueError(f"Invalid detector model '{model_name}' specified in config.")
+
+        DetectorClass = self.available_detectors[model_name]
+        try:
+            logging.info(f"Initializing pose detector: {model_name}...")
+            self.pose_detector = DetectorClass()
+            logging.info(f"Successfully initialized pose detector: {model_name}")
+        except Exception as e:
+            logging.error(f"Failed to initialize detector '{model_name}': {e}")
+            # Re-raise to halt execution, as the app can't run without a detector.
+            raise
+
     def update_state(self, new_state):
         logging.info(f"State change: {self.state.value} -> {new_state.value}")
         self.state = new_state
@@ -127,6 +160,26 @@ class PoseCamController:
         logging.info(f"Config updated: {key} = {value}")
         if self.gui:
             self.gui.update_ui_config(key, value)
+
+    def change_detector_model(self, model_name):
+        """Changes the active pose detector model. Can only be done when stopped."""
+        if self.state not in [AppState.STOPPED, AppState.READY]:
+            logging.warning(f"Cannot change detector model while in state {self.state.name}. Please stop first.")
+            if self.gui:
+                # Revert the dropdown in the GUI to the actual current model
+                self.gui.selected_detector.set(self.config['detector_model'])
+            return
+
+        if model_name == self.config['detector_model']:
+            logging.info(f"Detector model '{model_name}' is already active.")
+            return
+
+        logging.info(f"Changing detector model to: {model_name}")
+        self.update_config('detector_model', model_name)
+
+        self._initialize_detector()
+        # Save the new landmark map for the new model
+        self.pose_detector.save_landmark_map_to_csv()
 
     def start_all(self):
         """Starts NDI, OSC, and the video stream in order."""

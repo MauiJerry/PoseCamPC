@@ -29,6 +29,7 @@ class PoseCamGUI:
         self.video_file_path = tk.StringVar(value=self.controller.config.get('video_file') or "")
         self.input_source = tk.StringVar(value=self.controller.config['input'])
         self.video_info_text = tk.StringVar(value="")
+        self.selected_detector = tk.StringVar()
 
         # Add traces to automatically update the controller when the user types
         self.ndi_name.trace_add("write", self._on_ndi_name_change)
@@ -105,6 +106,14 @@ class PoseCamGUI:
         info_label.grid(row=3, column=0, columnspan=3, sticky='w', pady=(5,0))
 
         input_frame.grid_columnconfigure(2, weight=1)
+
+        # --- Model selection frame ---
+        model_frame = tk.LabelFrame(controls_frame, text="Pose Model", padx=10, pady=10)
+        model_frame.pack(pady=10, fill=tk.X, anchor='n')
+
+        # This dropdown will be populated by the controller
+        self.detector_dropdown = tk.OptionMenu(model_frame, self.selected_detector, "Loading...")
+        self.detector_dropdown.pack(fill=tk.X)
 
         # --- Output settings frame ---
         output_frame = tk.LabelFrame(controls_frame, text="Output Settings", padx=10, pady=10)
@@ -255,6 +264,19 @@ class PoseCamGUI:
             self.controller.update_config("input", "file")
             self.controller.update_config("video_file", file_path)
 
+    def update_detector_list(self, detector_names, current_detector_name):
+        """Receives the detector list from the controller and populates the dropdown."""
+        menu = self.detector_dropdown['menu']
+        menu.delete(0, 'end')
+
+        for name in detector_names:
+            menu.add_command(label=name, command=lambda value=name: self._on_detector_select(value))
+
+        self.selected_detector.set(current_detector_name)
+
+    def _on_detector_select(self, detector_name):
+        self.controller.change_detector_model(detector_name)
+
     def update_ui_state(self, state):
         from core.controller import AppState # Local import to avoid circular dependency at module level
         self.root.title(f"PoseCam State: {state.name}")
@@ -272,6 +294,9 @@ class PoseCamGUI:
         self.btn_stop_all.config(state=stop_enabled_state)
         self.btn_start.config(state=start_enabled_state)
         self.btn_stop.config(state=stop_enabled_state)
+
+        # Disable detector selection while running
+        self.detector_dropdown.config(state=tk.NORMAL if is_stopped else tk.DISABLED)
 
         # Update pause button to toggle text between "Pause" and "Continue"
         self.btn_pause.config(state=pause_enabled_state)
@@ -299,6 +324,8 @@ class PoseCamGUI:
             self._update_input_widget_states()
         elif key == 'draw_ndi_overlay':
             self.draw_ndi_overlay.set(value)
+        elif key == 'detector_model':
+            self.selected_detector.set(value)
 
     def update_video_info(self, width, height):
         """Updates the label with video resolution."""
