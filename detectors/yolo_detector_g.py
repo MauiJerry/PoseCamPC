@@ -90,29 +90,30 @@ class PoseDetectorYOLO_G(AbstractPoseDetector):
         # verbose=False prevents it from printing results to the console
         self.latest_results = self.model(image, verbose=False)
         
-        # Reset landmarks from the previous frame
         self.latest_landmarks = []
 
-        # The result object contains detections for all people in the frame
-        for person_result in self.latest_results:
-            # Check if any keypoints were detected for this person
-            if person_result.keypoints and person_result.keypoints.xy.shape[1] > 0:
-                # Get normalized coordinates and confidence scores
-                norm_coords = person_result.keypoints.xyn[0]
-                confidences = person_result.keypoints.conf[0]
-                
+        # The result object is a list, but for a single image it has one element.
+        if not self.latest_results:
+            return None
+        
+        result = self.latest_results[0] # Get the Results object for the single image
+
+        # Check if the model detected any keypoints at all
+        if result.keypoints and hasattr(result.keypoints, 'xyn'):
+            # keypoints.xyn is a tensor of shape (num_persons, num_keypoints, 2)
+            all_norm_coords = result.keypoints.xyn
+            all_confidences = result.keypoints.conf
+
+            # Iterate through each detected person
+            for person_idx in range(len(all_norm_coords)):
+                norm_coords = all_norm_coords[person_idx] # Keypoints for one person
+                confidences = all_confidences[person_idx] # Confidences for one person
+
                 skeleton = []
                 for i in range(len(norm_coords)):
-                    # Get the (x, y) coordinates
                     x, y = norm_coords[i]
-                    
-                    # Get the confidence score, which we'll use for visibility
                     visibility = confidences[i]
-                    
-                    # YOLO does not provide a Z-coordinate, so we'll use 0.0 as a placeholder.
-                    # This keeps the data structure consistent with the abstract class.
-                    z = 0.0
-                    
+                    z = 0.0 # YOLO is 2D, so Z is a placeholder
                     skeleton.append((float(x), float(y), z, float(visibility)))
                 
                 self.latest_landmarks.append(skeleton)
