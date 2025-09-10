@@ -140,8 +140,13 @@ class BatchTesterGUI:
         self.controller.start_ndi()
         self.controller.start_osc()
 
+        # --- Configuration for the test run ---
+        # Set this to True to also test performance without the overlay drawn.
+        # By default, only the performance with the overlay is tested.
+        TEST_WITHOUT_OVERLAY = False
+
         detector_names = list(self.controller.available_detectors.keys())
-        overlay_options = [True, False]
+        overlay_options = [True, False] if TEST_WITHOUT_OVERLAY else [True]
         total_runs = len(video_files) * len(detector_names) * len(overlay_options)
         current_run = 0
 

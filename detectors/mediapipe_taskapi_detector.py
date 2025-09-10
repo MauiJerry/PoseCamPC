@@ -38,10 +38,7 @@ class PoseDetectorMediaPipeTask(AbstractPoseDetector):
         self.output_segmentation_masks = output_segmentation
         
         # Determine the model file path
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        model_cache_dir = os.path.join(base_dir, 'model_cache')
-        os.makedirs(model_cache_dir, exist_ok=True)
-        self._model_path = os.path.join(model_cache_dir, MODELS.get(model, DEFAULT_MODEL))
+        self._model_path = self._get_model_path(self._model_key)
 
         # --- Instance variables for the Task API ---
         self._landmarker: vision.PoseLandmarker | None = None
@@ -52,6 +49,14 @@ class PoseDetectorMediaPipeTask(AbstractPoseDetector):
         self.pose_id_to_name = {lm.value: lm.name.lower() for lm in mp.solutions.pose.PoseLandmark}
         
         self._create_landmarker()
+
+    def _get_model_path(self, model_key: str) -> str:
+        """Constructs the full, absolute path to the model file."""
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        model_cache_dir = os.path.join(base_dir, 'model_cache')
+        os.makedirs(model_cache_dir, exist_ok=True)
+        model_filename = MODELS.get(model_key, DEFAULT_MODEL)
+        return os.path.join(model_cache_dir, model_filename)
 
     def _create_landmarker(self):
         """Creates or re-creates the PoseLandmarker instance with current settings."""
@@ -73,8 +78,14 @@ class PoseDetectorMediaPipeTask(AbstractPoseDetector):
             self._landmarker = vision.PoseLandmarker.create_from_options(options)
             logging.info("PoseLandmarker created successfully.")
         except Exception as e:
-            logging.error(f"Failed to create PoseLandmarker: {e}")
-            self._landmarker = None
+            error_message = (
+                f"Failed to create PoseLandmarker: {e}\n"
+                "This is likely because the model file is missing.\n"
+                f"Please download '{MODELS.get(self._model_key, DEFAULT_MODEL)}' from 'https://developers.google.com/mediapipe/solutions/vision/pose_landmarker/index#models'\n"
+                f"and place it in the '{os.path.dirname(self._model_path)}' directory."
+            )
+            logging.error(error_message)
+            raise RuntimeError(error_message) from e
 
     def process_image(self, image):
         """Triggers asynchronous detection and formats the latest available result."""
@@ -157,9 +168,7 @@ class PoseDetectorMediaPipeTask(AbstractPoseDetector):
         """Updates the model and recreates the landmarker."""
         if self._model_key != model_key and model_key in MODELS:
             self._model_key = model_key
-            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            model_cache_dir = os.path.join(base_dir, 'model_cache')
-            self._model_path = os.path.join(model_cache_dir, MODELS[model_key])
+            self._model_path = self._get_model_path(model_key)
             self._create_landmarker()
 
     def set_output_segmentation(self, enabled: bool):

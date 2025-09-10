@@ -32,24 +32,11 @@ pip-delete-this-directory.txt
 .DS_Store
 Thumbs.db
 ehthumbs.db
-Icon?
-desktop.ini
 
-# Local test data
-*.mp4
-*.mov
-*.avi
-*.jpg
-*.png
-*.json
+# Generated data files and logs
+*.log
 *.csv
 *.cfg
-
-# NDI wheel file (3.5Mb binary, keep in ndi/ but ignore from Git?)
-# ndi/*.whl
-
-# Logs
-*.log
 
 # Backup files
 *~

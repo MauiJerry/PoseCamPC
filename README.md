@@ -97,7 +97,9 @@ This section determines where the video comes from.
 This section allows you to choose the underlying AI model for pose detection. The application must be stopped to change models.
 
 -   **Pose Model Dropdown**: Select which pose detection model to use.
-    -   **MediaPipe Pose (Default)**: A balanced, single-person model from Google with 33 landmarks.
+    -   **MediaPipe Legacy (Default)**: The original, balanced single-person model from Google.
+    -   **MediaPipe Task API**: The modern MediaPipe API, which can be configured for multiple people and can output segmentation masks.
+    -   **MediaPipe Task API +Seg**: The same modern API, but with person segmentation enabled.
     -   **YOLOv8 (Simple)**: A fast, multi-person model with 17 landmarks (COCO standard). This version uses a simple, high-level API.
     -   **YOLOv8 (Complex)**: The same YOLOv8 model, but with more exposed parameters for fine-tuning detection performance.
 
@@ -186,9 +188,8 @@ For users integrating with TouchDesigner, a supplementary file named `@landmark_
 ---
 
 The landmark maps depend on the model selected.
-
 #### MediaPipe Landmark Map (33 Landmarks)
-Used by the `MediaPipe Pose (Default)` model.
+Used by all `MediaPipe` models.
 
 | ID | Name | ID | Name |
 |:---|:---|:---|:---|

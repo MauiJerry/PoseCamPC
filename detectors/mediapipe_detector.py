@@ -1,4 +1,5 @@
 from mediapipe import solutions as mp
+import cv2
 from .abstract_pose_detector import AbstractPoseDetector
 
 class PoseDetectorMediapipe(AbstractPoseDetector):
