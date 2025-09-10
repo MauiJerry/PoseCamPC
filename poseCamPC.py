@@ -2,12 +2,14 @@ import threading
 import time
 import logging
 from core.controller import PoseCamController
+from functools import partial
 from core.osc_listener import OSCListener
 from ui.tk_gui import PoseCamGUI
 from detectors import (
     PoseDetectorMediapipe,
     PoseDetectorYOLO_G,
     PoseDetectorYOLO_C,
+    PoseDetectorMediaPipeTask,
     # PoseDetectorYOLO_Seg
 )
 

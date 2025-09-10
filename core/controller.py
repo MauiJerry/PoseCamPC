@@ -65,7 +65,7 @@ class PoseCamController:
                 writer = csv.writer(f)
                 # Add the header for the event/metadata lines
                 writer.writerow(['# event_type', 'timestamp_us', 'model_name', 'overlay_status', 'source_info', 'resolution'])
-                writer.writerow(['model', 'frame_num', 'time_for_frame_ms', 'fps', 'running_avg_ms', 'running_avg_fps'])
+                writer.writerow(['model', 'frame_num', 'time_for_frame_ms', 'fps', 'persons', 'running_avg_ms', 'running_avg_fps'])
 
         except Exception as e:
             logging.error(f"Failed to create performance log file: {e}")
@@ -233,6 +233,9 @@ class PoseCamController:
         # Calculate instantaneous FPS, handle division by zero
         fps = 1.0 / frame_time_s if frame_time_s > 0 else 0
 
+        # Get the number of persons detected in the last processed frame
+        num_persons = len(self.pose_detector.latest_landmarks)
+
         # Initialize stats for a model if not present
         if model_name not in self.model_perf_stats:
             self.model_perf_stats[model_name] = {'total_time': 0.0, 'frame_count': 0}
@@ -251,7 +254,7 @@ class PoseCamController:
         try:
             with open(self.perf_log_file, 'a', newline='') as f:
                 writer = csv.writer(f)
-                writer.writerow([model_name, self.frame_count, frame_time_ms, fps, running_avg_ms, running_avg_fps])
+                writer.writerow([model_name, self.frame_count, frame_time_ms, fps, num_persons, running_avg_ms, running_avg_fps])
         except Exception as e:
             logging.error(f"Failed to write frame performance to log: {e}")
 
@@ -450,10 +453,6 @@ class PoseCamController:
                     if self.frame_count == 1 or self.frame_count % self.config['fps_limit'] == 0:
                         logging.debug(f"Processing frame: {self.frame_count}")
 
-                    # Send landmarks via OSC
-                    if self.osc_active:
-                        self.pose_detector.send_landmarks_via_osc(self.osc_client, self.frame_count, self.config['fps_limit'])
-
                     # --- Start Performance Timing ---
                     processing_start_time = time.perf_counter()
 
@@ -468,8 +467,11 @@ class PoseCamController:
                     processing_end_time = time.perf_counter()
 
                     # --- Log Performance Data for the core work ---
-                    if not getattr(self.pose_detector, 'is_async', False):
-                        self._log_perf_frame(processing_end_time - processing_start_time)
+                    self._log_perf_frame(processing_end_time - processing_start_time)
+
+                    # Send landmarks via OSC AFTER processing the frame
+                    if self.osc_active:
+                        self.pose_detector.send_landmarks_via_osc(self.osc_client, self.frame_count, self.config['fps_limit'])
 
                     # --- Prepare the preview frame (outside of performance timing) ---
                     # The preview frame always gets an overlay.

@@ -17,7 +17,9 @@ class PoseDetectorMediapipe(AbstractPoseDetector):
     def process_image(self, image):
         self.image_height, self.image_width, _ = image.shape
 
-        self.latest_results = self.pose.process(image)
+        # MediaPipe expects RGB images, so we need to convert from BGR.
+        image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        self.latest_results = self.pose.process(image_rgb)
         if self.latest_results.pose_landmarks:
             # Wrap the single skeleton in a list to conform to the base class contract
             skeleton = [

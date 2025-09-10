@@ -7,9 +7,8 @@ from mediapipe.tasks.python import vision
 from mediapipe.framework.formats import landmark_pb2
 import numpy as np
 import cv2
-import threading
 import os
-import time
+import time # Keep for timestamping
 import logging
 
 from .abstract_pose_detector import AbstractPoseDetector
@@ -37,7 +36,6 @@ class PoseDetectorMediaPipeTask(AbstractPoseDetector):
         self.min_pose_presence_confidence = 0.5
         self.min_tracking_confidence = 0.5
         self.output_segmentation_masks = output_segmentation
-        self.is_async = True # Flag for the controller to handle this detector correctly
         
         # Determine the model file path
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -47,9 +45,6 @@ class PoseDetectorMediaPipeTask(AbstractPoseDetector):
 
         # --- Instance variables for the Task API ---
         self._landmarker: vision.PoseLandmarker | None = None
-        self._lock = threading.Lock()
-        self._latest_result: vision.PoseLandmarkerResult | None = None
-        self._latest_timestamp_ms = 0
         
         seg_suffix = " +Seg" if self.output_segmentation_masks else ""
         self.model_name = f"MediaPipe Task ({self._model_key}{seg_suffix})"
@@ -65,13 +60,12 @@ class PoseDetectorMediaPipeTask(AbstractPoseDetector):
             base_options = python.BaseOptions(model_asset_path=self._model_path)
             options = vision.PoseLandmarkerOptions(
                 base_options=base_options,
-                running_mode=vision.RunningMode.LIVE_STREAM,
+                running_mode=vision.RunningMode.VIDEO,
                 num_poses=self.num_poses,
                 min_pose_detection_confidence=self.min_pose_detection_confidence,
                 min_pose_presence_confidence=self.min_pose_presence_confidence,
                 min_tracking_confidence=self.min_tracking_confidence,
                 output_segmentation_masks=self.output_segmentation_masks,
-                result_callback=self._result_callback
             )
             # Close existing landmarker before creating a new one
             if self._landmarker:
@@ -81,12 +75,6 @@ class PoseDetectorMediaPipeTask(AbstractPoseDetector):
         except Exception as e:
             logging.error(f"Failed to create PoseLandmarker: {e}")
             self._landmarker = None
-
-    def _result_callback(self, result: vision.PoseLandmarkerResult, output_image: mp.Image, timestamp_ms: int):
-        """Asynchronous callback to receive detection results."""
-        with self._lock:
-            self._latest_result = result
-            self._latest_timestamp_ms = timestamp_ms
 
     def process_image(self, image):
         """Triggers asynchronous detection and formats the latest available result."""
@@ -100,15 +88,13 @@ class PoseDetectorMediaPipeTask(AbstractPoseDetector):
         rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_image)
         
-        # Trigger async detection. The result will be sent to _result_callback.
-        current_timestamp_ms = int(time.time() * 1000)
-        self._landmarker.detect_async(mp_image, current_timestamp_ms)
-        
+        # For VIDEO mode, we need a monotonically increasing timestamp.
+        timestamp_ms = int(time.monotonic() * 1000)
+        result = self._landmarker.detect_for_video(mp_image, timestamp_ms)
+
         # --- Retrieve and format the latest result ---
+        self.latest_results = result
         self.latest_landmarks = []
-        with self._lock:
-            result = self._latest_result # Make a local copy to work with
-            self.latest_results = result # Store raw result for drawing
             
         if result and result.pose_landmarks:
             for person_landmarks in result.pose_landmarks:
