@@ -42,6 +42,8 @@ class AbstractPoseDetector(ABC):
         self.model_name = "AbstractDetector"
         # A list of skeletons, where each skeleton is a list of (x, y, z) tuples
         self.latest_landmarks = []
+        # A list of bounding boxes, where each bbox is a (x, y, w, h) tuple in normalized coords
+        self.latest_bboxes = []
         self.latest_results = None # To store the raw results from the backend
         self._osc_bundle_log_count = 0
         self._osc_person_bundle_log_count = 0
@@ -171,6 +173,17 @@ class AbstractPoseDetector(ABC):
             if not skeleton:
                 continue
             bundleStats_personCount +=1
+            
+            # Add bounding box data if available for this person
+            if person_id < len(self.latest_bboxes):
+                x, y, w, h = self.latest_bboxes[person_id]
+                msg_bbox = osc_message_builder.OscMessageBuilder(address=f"/pose/p{person_id + 1}/bbox")
+                msg_bbox.add_arg(float(x))
+                msg_bbox.add_arg(float(y))
+                msg_bbox.add_arg(float(w))
+                msg_bbox.add_arg(float(h))
+                bundle_builder.add_content(msg_bbox.build())
+                bundleStats_totalMessages += 1
             
             # the impl should include xyz + visibility
             # at this time we dont send vis on thru OSC but might in future

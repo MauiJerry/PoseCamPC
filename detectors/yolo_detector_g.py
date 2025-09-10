@@ -91,6 +91,7 @@ class PoseDetectorYOLO_G(AbstractPoseDetector):
         self.latest_results = self.model(image, verbose=False)
         
         self.latest_landmarks = []
+        self.latest_bboxes = []
 
         # The result object is a list, but for a single image it has one element.
         if not self.latest_results:
@@ -103,6 +104,11 @@ class PoseDetectorYOLO_G(AbstractPoseDetector):
             # keypoints.xyn is a tensor of shape (num_persons, num_keypoints, 2)
             all_norm_coords = result.keypoints.xyn
             all_confidences = result.keypoints.conf
+
+            # Get bounding boxes if they exist
+            all_bboxes = None
+            if result.boxes and hasattr(result.boxes, 'xywhn'):
+                all_bboxes = result.boxes.xywhn
 
             # Iterate through each detected person
             for person_idx in range(len(all_norm_coords)):
@@ -117,6 +123,11 @@ class PoseDetectorYOLO_G(AbstractPoseDetector):
                     skeleton.append((float(x), float(y), z, float(visibility)))
                 
                 self.latest_landmarks.append(skeleton)
+
+                # Add corresponding bounding box
+                if all_bboxes is not None and person_idx < len(all_bboxes):
+                    x, y, w, h = all_bboxes[person_idx]
+                    self.latest_bboxes.append((float(x), float(y), float(w), float(h)))
 
         return self.latest_results
 

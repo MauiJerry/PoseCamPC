@@ -111,6 +111,7 @@ class PoseDetectorYOLO_C(AbstractPoseDetector):
     def process_image(self, image_bgr) -> Any:
         if image_bgr is None or image_bgr.size == 0:
             self.latest_landmarks = []
+            self.latest_bboxes = []
             self._last_px = []
             return None
 
@@ -127,6 +128,7 @@ class PoseDetectorYOLO_C(AbstractPoseDetector):
         )
         if not results:
             self.latest_landmarks = []
+            self.latest_bboxes = []
             self._last_px = []
             return None
 
@@ -135,6 +137,7 @@ class PoseDetectorYOLO_C(AbstractPoseDetector):
         boxes = getattr(r, "boxes", None)
         if kps is None or boxes is None:
             self.latest_landmarks = []
+            self.latest_bboxes = []
             self._last_px = []
             return r
 
@@ -154,13 +157,22 @@ class PoseDetectorYOLO_C(AbstractPoseDetector):
             else:
                 k_cf = np.tile(det_conf.reshape(-1, 1), (1, k_xy.shape[1]))
 
+        # Extract bounding boxes
+        bboxes_norm = boxes.xywhn.cpu().numpy() if hasattr(boxes, "xywhn") else None
+
         self._last_px = []
         out: List[List[Tuple[float, float, float, float]]] = []
+        out_bboxes: List[Tuple[float, float, float, float]] = []
 
         for i in range(k_xy.shape[0]):  # per person
             person_xy = k_xy[i]         # [17, 2]
             person_cf = k_cf[i]         # [17]
             self._last_px.append(person_xy.astype(np.float32))
+
+            # Add corresponding bounding box
+            if bboxes_norm is not None and i < len(bboxes_norm):
+                x, y, w, h = bboxes_norm[i]
+                out_bboxes.append((float(x), float(y), float(w), float(h)))
 
             # Normalize to [0..1] to match MP-style downstream consumers
             person_norm: List[Tuple[float, float, float, float]] = []
@@ -174,6 +186,7 @@ class PoseDetectorYOLO_C(AbstractPoseDetector):
             out.append(person_norm)
 
         self.latest_landmarks = out
+        self.latest_bboxes = out_bboxes
         return r
 
     def draw_landmarks(self, frame) -> None:

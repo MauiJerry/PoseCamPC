@@ -30,6 +30,8 @@ class PoseDetectorMediapipe(AbstractPoseDetector):
             self.latest_landmarks = [skeleton]
         else:
             self.latest_landmarks = []
+
+        self.latest_bboxes = [] # MediaPipe doesn't provide bboxes, so ensure this is empty
         return self.latest_results
 
     def draw_landmarks(self, frame):

@@ -172,6 +172,13 @@ For each detected landmark, a message with the following structure is added to t
 | Address | `/pose/p1/0` | string | The OSC address. `p1` is the 1-based person ID. `0` is the 0-based landmark ID. |
 | Arguments | `0.512, 0.245, -0.876` | 3 floats | The normalized (X, Y, Z) coordinates of the landmark. `z` represents depth, with smaller values being closer to the camera. |
 
+For each person detected by a **YOLO model**, an additional message is sent containing the bounding box data.
+
+| Part | Example | Type | Description |
+|---|---|---|---|
+| Address | `/pose/p1/bbox` | string | The OSC address for the bounding box of person `p1`. |
+| Arguments | `0.5, 0.5, 0.2, 0.8` | 4 floats | The normalized `(center_x, center_y, width, height)` of the bounding box. |
+
 ### Landmark ID Mapping
 
 To help you interpret the landmark data, the application provides the ID-to-name mapping in several ways:

@@ -106,6 +106,7 @@ class PoseDetectorMediaPipeTask(AbstractPoseDetector):
         # --- Retrieve and format the latest result ---
         self.latest_results = result
         self.latest_landmarks = []
+        self.latest_bboxes = [] # MediaPipe doesn't provide bboxes, so ensure this is empty
             
         if result and result.pose_landmarks:
             for person_landmarks in result.pose_landmarks:
