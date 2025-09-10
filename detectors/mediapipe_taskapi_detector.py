@@ -37,6 +37,7 @@ class PoseDetectorMediaPipeTask(AbstractPoseDetector):
         self.min_pose_presence_confidence = 0.5
         self.min_tracking_confidence = 0.5
         self.output_segmentation_masks = output_segmentation
+        self.is_async = True # Flag for the controller to handle this detector correctly
         
         # Determine the model file path
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -50,7 +51,8 @@ class PoseDetectorMediaPipeTask(AbstractPoseDetector):
         self._latest_result: vision.PoseLandmarkerResult | None = None
         self._latest_timestamp_ms = 0
         
-        self.model_name = f"MediaPipe Task ({self._model_key})"
+        seg_suffix = " +Seg" if self.output_segmentation_masks else ""
+        self.model_name = f"MediaPipe Task ({self._model_key}{seg_suffix})"
         # The landmark map is the same as the legacy API, which is convenient
         self.pose_id_to_name = {lm.value: lm.name.lower() for lm in mp.solutions.pose.PoseLandmark}
         
@@ -122,35 +124,40 @@ class PoseDetectorMediaPipeTask(AbstractPoseDetector):
         if not self.latest_results or not self.latest_results.pose_landmarks:
             return
 
-        # Create a mutable copy for drawing
-        annotated_image = frame.copy()
-
         # --- 1. Draw Segmentation Mask (if available) ---
         if self.output_segmentation_masks and self.latest_results.segmentation_masks:
-            for mask in self.latest_results.segmentation_masks:
-                mask_array = mask.numpy_view()
-                # Create a solid color mask and blend it
-                colored_mask = np.zeros_like(annotated_image, dtype=np.uint8)
-                colored_mask[:] = (0, 200, 0) # Green color for the mask
-                # Apply the mask
-                condition = np.stack((mask_array,) * 3, axis=-1) > 0.1
-                annotated_image = np.where(condition, cv2.addWeighted(annotated_image, 0.3, colored_mask, 0.7, 0), annotated_image)
+            # Create a solid green overlay for blending
+            green_overlay = np.zeros_like(frame, dtype=np.uint8)
+            green_overlay[:] = (0, 200, 0)
 
-        # --- 2. Draw Pose Landmarks on top ---
+            # Combine all masks into a single boolean mask
+            combined_mask = np.zeros((self.image_height, self.image_width), dtype=bool)
+            for segmentation_mask in self.latest_results.segmentation_masks:
+                mask = segmentation_mask.numpy_view() > 0.1
+                combined_mask = np.logical_or(combined_mask, mask)
+
+            # Expand mask to 3 channels for blending
+            condition = np.stack((combined_mask,) * 3, axis=-1)
+
+            # Create a blended image
+            blended = cv2.addWeighted(frame, 0.3, green_overlay, 0.7, 0)
+
+            # Copy the blended pixels onto the original frame only where the mask is true (in-place)
+            np.copyto(frame, blended, where=condition)
+
+        # --- 2. Draw Pose Landmarks on top (in-place) ---
         for person_landmarks in self.latest_results.pose_landmarks:
             pose_landmarks_proto = landmark_pb2.NormalizedLandmarkList()
             pose_landmarks_proto.landmark.extend([
-                landmark_pb2.NormalizedLandmark(x=lm.x, y=lm.y, z=lm.z) for lm in person_landmarks
+                landmark_pb2.NormalizedLandmark(x=lm.x, y=lm.y, z=lm.z)
+                for lm in person_landmarks
             ])
             mp.solutions.drawing_utils.draw_landmarks(
-                annotated_image,
+                frame,
                 pose_landmarks_proto,
                 mp.solutions.pose.POSE_CONNECTIONS,
                 mp.solutions.drawing_styles.get_default_pose_landmarks_style()
             )
-        
-        # Copy the annotated image data back to the original frame
-        frame[:] = annotated_image[:]
 
     # --- Accessors to change settings at runtime ---
     
@@ -175,4 +182,3 @@ class PoseDetectorMediaPipeTask(AbstractPoseDetector):
             self.output_segmentation_masks = enabled
             self._create_landmarker()
 	
-

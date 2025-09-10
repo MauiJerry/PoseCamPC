@@ -40,6 +40,7 @@ class AbstractPoseDetector(ABC):
             32: 'foot_r'
         }
         self.model_name = "AbstractDetector"
+        self.is_async = False # Default to synchronous processing
         # A list of skeletons, where each skeleton is a list of (x, y, z) tuples
         self.latest_landmarks = []
         self.latest_results = None # To store the raw results from the backend

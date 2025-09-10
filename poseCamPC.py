@@ -18,10 +18,12 @@ logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
 # Create a mapping of user-friendly names to detector classes.
 # This will be passed to the controller and then to the UI.
 AVAILABLE_DETECTORS = {
-    "MediaPipe Pose (Default)": PoseDetectorMediapipe,
+    "MediaPipe Legacy (Default)": PoseDetectorMediapipe,
+    "MediaPipe Task API": partial(PoseDetectorMediaPipeTask, output_segmentation=False),
+    "MediaPipe Task API +Seg": partial(PoseDetectorMediaPipeTask, output_segmentation=True),
     "YOLOv8 (Simple)": PoseDetectorYOLO_G,
     "YOLOv8 (Complex)": PoseDetectorYOLO_C,
-    # "YOLOv8 Pose+Seg": PoseDetectorYOLO_Seg, # This model is very slow (~12fps)
+    # "YOLOv8 Pose+Seg": PoseDetectorYOLO_Seg, # This model is very slow
 }
 
 controller = PoseCamController(AVAILABLE_DETECTORS)

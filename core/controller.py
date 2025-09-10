@@ -468,7 +468,8 @@ class PoseCamController:
                     processing_end_time = time.perf_counter()
 
                     # --- Log Performance Data for the core work ---
-                    self._log_perf_frame(processing_end_time - processing_start_time)
+                    if not getattr(self.pose_detector, 'is_async', False):
+                        self._log_perf_frame(processing_end_time - processing_start_time)
 
                     # --- Prepare the preview frame (outside of performance timing) ---
                     # The preview frame always gets an overlay.

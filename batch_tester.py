@@ -4,19 +4,23 @@ import threading
 import os
 import time
 import logging
+from functools import partial
 
 from core.controller import PoseCamController, AppState
 from detectors import (
     PoseDetectorMediapipe,
     PoseDetectorYOLO_G,
     PoseDetectorYOLO_C,
-    PoseDetectorYOLO_Seg
+    # PoseDetectorYOLO_Seg,
+    PoseDetectorMediaPipeTask
 )
 
 # --- Model Configuration ---
 AVAILABLE_DETECTORS = {
-    "YOLOv8 Pose+Seg": PoseDetectorYOLO_Seg, # This model is very slow (~12fps)
-    "MediaPipe Pose (Default)": PoseDetectorMediapipe,
+    # "YOLOv8 Pose+Seg": PoseDetectorYOLO_Seg, # This model is very slow (~12fps)
+    "MediaPipe Legacy": PoseDetectorMediapipe,
+    "MediaPipe Task API": partial(PoseDetectorMediaPipeTask, output_segmentation=False),
+    "MediaPipe Task API +Seg": partial(PoseDetectorMediaPipeTask, output_segmentation=True),
     "YOLOv8 (Simple)": PoseDetectorYOLO_G,
     "YOLOv8 (Complex)": PoseDetectorYOLO_C,
 }
