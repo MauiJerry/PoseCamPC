@@ -5,6 +5,14 @@ import os
 from ultralytics import YOLO
 from .abstract_pose_detector import AbstractPoseDetector
 
+# Define the connections between COCO keypoints for drawing the skeleton
+COCO17_EDGES = [
+    (5, 7), (7, 9), (6, 8), (8, 10),
+    (11, 13), (13, 15), (12, 14), (14, 16),
+    (5, 6), (11, 12), (5, 11), (6, 12),
+    (0, 1), (0, 2), (1, 3), (2, 4),
+]
+
 class PoseDetectorYOLO_G(AbstractPoseDetector):
     def __init__(self, model_filename='yolov8n-pose.pt'):
         """
@@ -86,12 +94,23 @@ class PoseDetectorYOLO_G(AbstractPoseDetector):
         """
         Draws the detected pose landmarks and connections on the given frame.
         """
-        # The ultralytics results object has a built-in plot() method which is very convenient.
-        # It handles drawing boxes, keypoints, and connections.
-        if self.latest_results:
-            # The plot() method returns a new image with annotations.
-            # We need to overwrite the original frame with the annotated one.
-            # Note: This assumes only one result object, which is typical for single-image processing.
-            annotated_frame = self.latest_results[0].plot()
-            # To modify the frame in-place, copy the annotated data back
-            frame[:] = annotated_frame[:]
+        if not self.latest_landmarks:
+            return
+
+        h, w, _ = frame.shape
+
+        for skeleton in self.latest_landmarks:
+            # Create a list of pixel coordinates for the current skeleton
+            pixel_coords = []
+            for (nx, ny, _, visibility) in skeleton:
+                if visibility > 0.1: # Draw only if confidence is reasonable
+                    px, py = int(nx * w), int(ny * h)
+                    pixel_coords.append((px, py))
+                    cv2.circle(frame, (px, py), 3, (0, 255, 0), -1)
+                else:
+                    pixel_coords.append(None) # Add a placeholder for missing keypoints
+
+            # Draw the skeleton connections
+            for start_idx, end_idx in COCO17_EDGES:
+                if start_idx < len(pixel_coords) and end_idx < len(pixel_coords) and pixel_coords[start_idx] and pixel_coords[end_idx]:
+                    cv2.line(frame, pixel_coords[start_idx], pixel_coords[end_idx], (255, 255, 255), 1)

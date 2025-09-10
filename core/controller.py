@@ -2,6 +2,8 @@ from enum import Enum
 import logging
 import os
 import cv2
+import datetime
+import csv
 import time
 import queue
 import threading
@@ -50,6 +52,20 @@ class PoseCamController:
             'fps_limit': 30,
             'detector_model': default_detector_name
         }
+
+        # --- Performance Logging Setup ---
+        log_timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+        self.perf_log_file = f"performance_log_{log_timestamp}.csv"
+        self.model_perf_stats = {} # e.g., {'model_name': {'total_time': 0.0, 'frame_count': 0}}
+        
+        try:
+            with open(self.perf_log_file, 'w', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow(['model', 'frame_num', 'time_for_frame_ms', 'running_avg_ms'])
+            logging.info(f"Performance log will be written to {self.perf_log_file}")
+        except Exception as e:
+            logging.error(f"Failed to create performance log file: {e}")
+            self.perf_log_file = None # Disable logging if file can't be created
 
         self._initialize_detector()
         self.pose_detector.save_landmark_map_to_csv()
@@ -160,6 +176,58 @@ class PoseCamController:
         if self.gui:
             self.gui.update_ui_config(key, value)
 
+        # If the overlay setting changes, log it as a performance event
+        if key == 'draw_ndi_overlay':
+            self._log_perf_event()
+
+    def _log_perf_event(self):
+        """Logs a configuration change event and resets the running average for the current model."""
+        if not self.perf_log_file:
+            return
+
+        model_name = self.config['detector_model']
+        plot_status = self.config['draw_ndi_overlay']
+        timestamp = time.time_ns() // 1000  # microseconds
+
+        try:
+            with open(self.perf_log_file, 'a', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow([f'# Change', timestamp, model_name, plot_status])
+        except Exception as e:
+            logging.error(f"Failed to write performance event to log: {e}")
+
+        # Reset running average for the current model
+        self.model_perf_stats[model_name] = {'total_time': 0.0, 'frame_count': 0}
+        logging.info(f"Performance event logged. Running average for '{model_name}' reset.")
+
+    def _log_perf_frame(self, frame_time_s):
+        """Logs the performance data for a single processed frame."""
+        if not self.perf_log_file:
+            return
+
+        model_name = self.config['detector_model']
+        frame_time_ms = frame_time_s * 1000
+
+        # Initialize stats for a model if not present
+        if model_name not in self.model_perf_stats:
+            self.model_perf_stats[model_name] = {'total_time': 0.0, 'frame_count': 0}
+
+        # Update stats
+        stats = self.model_perf_stats[model_name]
+        stats['total_time'] += frame_time_s
+        stats['frame_count'] += 1
+
+        # Calculate running average
+        running_avg_s = stats['total_time'] / stats['frame_count']
+        running_avg_ms = running_avg_s * 1000
+
+        try:
+            with open(self.perf_log_file, 'a', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow([model_name, self.frame_count, frame_time_ms, running_avg_ms])
+        except Exception as e:
+            logging.error(f"Failed to write frame performance to log: {e}")
+
     def change_detector_model(self, model_name):
         """Changes the active pose detector model. Can only be done when stopped."""
         if self.state not in [AppState.STOPPED, AppState.READY]:
@@ -176,6 +244,9 @@ class PoseCamController:
         logging.info(f"Changing detector model to: {model_name}")
         self.update_config('detector_model', model_name)
 
+        # Log the change event which will also reset the new model's stats
+        self._log_perf_event()
+
         self._initialize_detector()
         # Save the new landmark map for the new model
         self.pose_detector.save_landmark_map_to_csv()
@@ -191,6 +262,9 @@ class PoseCamController:
         if self.state == AppState.RUNNING:
             logging.warning("Start command issued, but already running.")
             return
+
+        # Log the start event which will also reset the model's stats
+        self._log_perf_event()
 
         # Simply update the state. The run() loop will handle resource creation.
         self.frame_count = 0
@@ -347,28 +421,38 @@ class PoseCamController:
                     if self.frame_count == 1 or self.frame_count % self.config['fps_limit'] == 0:
                         logging.debug(f"Processing frame: {self.frame_count}")
 
-                    # Process the image to find landmarks and send them via OSC
-                    self.pose_detector.process_image(frame)
-
                     # Send landmarks via OSC
                     if self.osc_active:
                         self.pose_detector.send_landmarks_via_osc(self.osc_client, self.frame_count, self.config['fps_limit'])
 
-                    # Create a frame for the local preview that *always* has the overlay
-                    preview_frame = frame.copy()
+                    # --- Start Performance Timing ---
+                    processing_start_time = time.perf_counter()
+
+                    # 1. Process the image to find landmarks (core model performance)
+                    self.pose_detector.process_image(frame)
+
+                    # 2. Conditionally draw landmarks on the original frame for NDI output
                     if self.config['draw_ndi_overlay']:
+                        self.pose_detector.draw_landmarks(frame)
+                    
+                    # --- End Performance Timing ---
+                    processing_end_time = time.perf_counter()
+
+                    # --- Log Performance Data for the core work ---
+                    self._log_perf_frame(processing_end_time - processing_start_time)
+
+                    # --- Prepare the preview frame (outside of performance timing) ---
+                    # The preview frame always gets an overlay.
+                    preview_frame = frame.copy()
+                    if not self.config['draw_ndi_overlay']:
+                        # If the overlay wasn't drawn for NDI, draw it now for the preview.
                         self.pose_detector.draw_landmarks(preview_frame)
+
+                    # Put preview frame in queue
                     try:
                         self.preview_frame_queue.put_nowait(preview_frame)
                     except queue.Full:
                         pass # GUI is lagging, just drop the frame
-
-                    # Conditionally draw landmarks on the original frame for NDI output
-                    if self.config['draw_ndi_overlay']:
-                        # print("draw - overlay on")
-                        self.pose_detector.draw_landmarks(frame)
-                    # else:
-                    #     print("draw overlay off")
                     
                     # Send the (conditionally modified) frame to NDI
                     self.send_video_via_ndi(frame)

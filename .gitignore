@@ -42,7 +42,7 @@ desktop.ini
 *.jpg
 *.png
 *.json
-#*.csv
+*.csv
 
 # NDI wheel file (3.5Mb binary, keep in ndi/ but ignore from Git?)
 # ndi/*.whl

@@ -15,7 +15,6 @@ class PoseDetectorMediapipe(AbstractPoseDetector):
         }
  
     def process_image(self, image):
-        # Update state for legacy OSC
         self.image_height, self.image_width, _ = image.shape
 
         self.latest_results = self.pose.process(image)
@@ -32,6 +31,5 @@ class PoseDetectorMediapipe(AbstractPoseDetector):
 
     def draw_landmarks(self, frame):
         # Use the latest results from process_image to avoid reprocessing
-        # print("in mediapipe, draw landmarks")
         if self.latest_results and self.latest_results.pose_landmarks:
             mp.drawing_utils.draw_landmarks(frame, self.latest_results.pose_landmarks, mp.pose.POSE_CONNECTIONS)
