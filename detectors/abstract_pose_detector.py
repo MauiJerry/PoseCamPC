@@ -227,26 +227,3 @@ class AbstractPoseDetector(ABC):
             client.send(bundle)
         except Exception as e:
             print(f"[OSC] Error sending landmark bundle: {e}")
-
-    # --- Methods for Legacy OSC Mode ---
-
-    def send_legacy_landmarks_via_osc(self, osc_client, frame_count: int):
-        """Sends landmarks using the legacy method (one message per landmark)."""
-        if osc_client is None:
-            return
-
-        try:
-            # Send metadata
-            osc_client.send_message("/framecount", frame_count)
-            osc_client.send_message(f"/image-height", self.image_height)
-            osc_client.send_message(f"/image-width", self.image_width)
-
-            # Legacy mode only supports one person (the first skeleton)
-            if self.latest_landmarks and self.latest_landmarks[0]:
-                skeleton = self.latest_landmarks[0]
-                for idx, (x, y, z) in enumerate(skeleton):
-                    landmark_name = self.pose_id_to_name.get(idx, "Unknown")
-                    osc_client.send_message(f"/p1/{landmark_name}", [float(x), float(y), float(z)])
-                osc_client.send_message(f"/numLandmarks", len(skeleton))
-        except Exception as e:
-            print(f"[OSC-Legacy] Error sending message: {e}")

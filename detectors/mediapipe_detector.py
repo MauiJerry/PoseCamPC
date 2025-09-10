@@ -4,7 +4,7 @@ from .abstract_pose_detector import AbstractPoseDetector
 class PoseDetectorMediapipe(AbstractPoseDetector):
     def __init__(self):
         super().__init__()
-        self.model_name = "MediaPipe Pose"
+        self.model_name = "MediaPipe Pose (Default)"
         self.pose = mp.pose.Pose()
  
         # Override the default mapping with the one from MediaPipe's PoseLandmark enum.

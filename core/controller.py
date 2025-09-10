@@ -22,7 +22,7 @@ class PoseCamController:
         self.state = AppState.INIT
 
         # Default config values
-        default_detector_name = "MediaPipe Pose"
+        default_detector_name = "MediaPipe Pose (Default)"
         if default_detector_name not in self.available_detectors:
             # Fallback if the default isn't present for some reason
             default_detector_name = list(self.available_detectors.keys())[0]
@@ -44,7 +44,6 @@ class PoseCamController:
             'ndi_name': 'posePC',
             'osc_ip': '127.0.0.1',
             'osc_port': 5005,
-            'osc_mode': 'bundle',  # 'bundle' or 'legacy'
             'osc_listen_port': 9000,
             'video_file': default_video,
             'camera_id': default_camera_id, # Use the determined default camera
@@ -351,16 +350,9 @@ class PoseCamController:
                     # Process the image to find landmarks and send them via OSC
                     self.pose_detector.process_image(frame)
 
-                    # Send landmarks via OSC based on the configured mode
+                    # Send landmarks via OSC
                     if self.osc_active:
-                        osc_mode = self.config['osc_mode']
-                        if osc_mode == 'bundle':
-                            self.pose_detector.send_landmarks_via_osc(self.osc_client, self.frame_count, self.config['fps_limit'])
-                        elif osc_mode == 'legacy':
-                            if hasattr(self.pose_detector, 'send_legacy_landmarks_via_osc'):
-                                self.pose_detector.send_legacy_landmarks_via_osc(self.osc_client, self.frame_count)
-                            else:
-                                logging.warning(f"OSC mode is 'legacy' but detector {type(self.pose_detector).__name__} doesn't support it.")
+                        self.pose_detector.send_landmarks_via_osc(self.osc_client, self.frame_count, self.config['fps_limit'])
 
                     # Create a frame for the local preview that *always* has the overlay
                     preview_frame = frame.copy()

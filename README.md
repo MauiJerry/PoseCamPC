@@ -98,7 +98,6 @@ This section allows you to choose the underlying AI model for pose detection. Th
 
 -   **Pose Model Dropdown**: Select which pose detection model to use.
     -   **MediaPipe Pose (Default)**: A balanced, single-person model from Google with 33 landmarks.
-    -   **MediaPipe Pose (Multi)**: The same model, but structured to handle multiple people if the underlying library supports it in the future.
     -   **YOLOv8 (Simple)**: A fast, multi-person model with 17 landmarks (COCO standard). This version uses a simple, high-level API.
     -   **YOLOv8 (Complex)**: The same YOLOv8 model, but with more exposed parameters for fine-tuning detection performance.
 
@@ -112,14 +111,11 @@ This section configures the NDI and OSC data streams. These can be started and s
     -   **Draw Overlay on NDI Checkbox**: When checked, the detected skeleton is drawn directly onto the NDI video stream. Uncheck to send a clean video feed.
 -   **OSC**:
     -   **IP / Port Text Boxes**: Set the destination IP address and port for the OSC landmark data.
-    -   **OSC Send Mode**: Choose the format for outgoing OSC messages.
-        -   **Bundle (New)**: The modern, efficient default. Sends all landmark data for a single frame in one network packet (an OSC Bundle). Recommended for new projects.
-        -   **Legacy (Old)**: Sends each piece of landmark data as a separate OSC message. This is less efficient but provides backward compatibility with older projects.
     -   **Start/Stop Buttons**: Manually start or stop sending OSC messages.
 
 ### Video Preview
 
-The large area on the right displays the live video feed with the detected pose landmarks overlaid.
+The large area on the right (below?) displays the live video feed with the detected pose landmarks overlaid.
 
 -   It will show a "Waiting for video stream..." message on startup.
 -   The preview will begin once you press "Start Video".
@@ -146,15 +142,11 @@ The application uses OSC for two purposes: sending pose data out and receiving r
 
 ### Pose Data (Output)
 
-The format of the outgoing pose data depends on the **OSC Send Mode** selected in the UI.
-
-#### Bundle Mode (Default)
-
-This mode is highly efficient and recommended for all new projects. It sends all data for a single frame as one OSC Bundle.
+The application sends all pose data in the efficient **OSC Bundle** format. This means all metadata and landmark data for a single video frame are sent together in one network packet.
 
 A single OSC bundle will contain a mix of metadata and landmark data messages.
 
-**Metadata Messages**
+#### Metadata Messages
 
 | Address | Example Argument | Type | Description | Frequency |
 |---|---|---|---|---|
@@ -168,7 +160,7 @@ A single OSC bundle will contain a mix of metadata and landmark data messages.
 | `/pose/model_name` | `"MediaPipe Pose"` | string | The name of the active pose detection model. | Periodically (~1s) |
 
 
-**Landmark Data Message**
+#### Landmark Data Message
 
 For each detected landmark, a message with the following structure is added to the bundle.
 
@@ -176,18 +168,6 @@ For each detected landmark, a message with the following structure is added to t
 |---|---|---|---|
 | Address | `/pose/p1/0` | string | The OSC address. `p1` is the 1-based person ID. `0` is the 0-based landmark ID. |
 | Arguments | `0.512, 0.245, -0.876` | 3 floats | The normalized (X, Y, Z) coordinates of the landmark. `z` represents depth, with smaller values being closer to the camera. |
-
-#### Legacy Mode
-
-This mode sends many individual messages per frame and is intended for backward compatibility. It is less efficient than Bundle Mode. A single video frame will generate multiple OSC messages, including metadata and data for each landmark.
-
-| Address | Example Arguments | Type | Description |
-|---|---|---|---|
-| `/framecount` | `1234` | int | The current frame number of the video stream. |
-| `/image-width` | `640` | int | The width of the processed video frame in pixels. |
-| `/image-height` | `480` | int | The height of the processed video frame in pixels. |
-| `/numLandmarks` | `33` | int | The total number of landmarks detected for a person. |
-| `/p{id}/{name}` | `[0.61, 0.45, -0.75]` | float array (x, y, z) | The coordinates for a specific landmark. `id` is the 1-based person ID. `name` is the human-readable landmark name (e.g., `shoulder_l`). |
 
 ### Landmark ID Mapping
 
@@ -197,7 +177,7 @@ To help you interpret the landmark data, the application provides the ID-to-name
     Upon starting or changing models, the application automatically generates a file named `landmark_idname.csv` in its root directory. This file contains the definitive mapping for the **currently selected model**. This is the primary reference for your client application.
 
 2.  **`/pose/landmark_names` OSC Message**:
-    When using the `bundle` mode, the application periodically sends an OSC message to the address `/pose/landmark_names`. The arguments of this message are an ordered list of all landmark names. The index of each name in the list corresponds to its `landmark_id`. This allows a client to build its mapping table dynamically.
+    The application periodically sends an OSC message to the address `/pose/landmark_names`. The arguments of this message are an ordered list of all landmark names. The index of each name in the list corresponds to its `landmark_id`. This allows a client to build its mapping table dynamically.
 
 #### TouchDesigner Integration (`@landmark_names_td.csv`)
 
@@ -208,7 +188,7 @@ For users integrating with TouchDesigner, a supplementary file named `@landmark_
 The landmark maps depend on the model selected.
 
 #### MediaPipe Landmark Map (33 Landmarks)
-Used by `MediaPipe Pose` and `MediaPipe Pose (Multi)` models.
+Used by the `MediaPipe Pose (Default)` model.
 
 | ID | Name | ID | Name |
 |:---|:---|:---|:---|
