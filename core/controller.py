@@ -63,8 +63,11 @@ class PoseCamController:
         try:
             with open(self.perf_log_file, 'w', newline='') as f:
                 writer = csv.writer(f)
+                # Add the header for the event/metadata lines
+                writer.writerow(['# event_type', 'timestamp_us', 'model_name', 'overlay_status', 'source_info', 'resolution'])
                 writer.writerow(['model', 'frame_num', 'time_for_frame_ms', 'running_avg_ms'])
-            logging.info(f"Performance log will be written to {self.perf_log_file}")
+                writer.writerow(['# event_type', 'timestamp_us', 'model_name', 'overlay_status', 'source_info', 'resolution'])
+
         except Exception as e:
             logging.error(f"Failed to create performance log file: {e}")
             self.perf_log_file = None # Disable logging if file can't be created
@@ -180,7 +183,7 @@ class PoseCamController:
 
         # If the overlay setting changes, log it as a performance event
         if key == 'draw_ndi_overlay':
-            self._log_perf_event()
+            self._log_perf_event() # Log this change to reset averages
 
     def _log_perf_event(self):
         """Logs a configuration change event and resets the running average for the current model."""
@@ -188,6 +191,15 @@ class PoseCamController:
             return
 
         model_name = self.config['detector_model']
+
+        # Always reset the running average for the current model when an event occurs
+        self.model_perf_stats[model_name] = {'total_time': 0.0, 'frame_count': 0}
+        logging.info(f"Performance event occurred. Running average for '{model_name}' reset.")
+
+        # Only write the full log entry if the stream is active (we have resolution info)
+        if self.video_width == 0:
+            return
+
         plot_status = self.config['draw_ndi_overlay']
         timestamp = time.time_ns() // 1000  # microseconds
 
@@ -210,10 +222,6 @@ class PoseCamController:
                 writer.writerow([f'# Change', timestamp, model_name, plot_status, source_info, resolution_info])
         except Exception as e:
             logging.error(f"Failed to write performance event to log: {e}")
-
-        # Reset running average for the current model
-        self.model_perf_stats[model_name] = {'total_time': 0.0, 'frame_count': 0}
-        logging.info(f"Performance event logged. Running average for '{model_name}' reset.")
 
     def _log_perf_frame(self, frame_time_s):
         """Logs the performance data for a single processed frame."""
@@ -277,9 +285,6 @@ class PoseCamController:
         if self.state == AppState.RUNNING:
             logging.warning("Start command issued, but already running.")
             return
-
-        # Log the start event which will also reset the model's stats
-        self._log_perf_event()
 
         # Simply update the state. The run() loop will handle resource creation.
         self.frame_count = 0
@@ -428,6 +433,9 @@ class PoseCamController:
                         self.video_height = height
                         if self.gui:
                             self.gui.update_video_info(width, height)
+                        
+                        # Log the start event now that we have the resolution
+                        self._log_perf_event()
                             
                 start_time = time.perf_counter()
 

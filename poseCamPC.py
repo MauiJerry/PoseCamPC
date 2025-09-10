@@ -7,7 +7,8 @@ from ui.tk_gui import PoseCamGUI
 from detectors import (
     PoseDetectorMediapipe,
     PoseDetectorYOLO_G,
-    PoseDetectorYOLO_C
+    PoseDetectorYOLO_C,
+    PoseDetectorYOLO_Seg
 )
 
 # Configure basic logging to show INFO level messages
@@ -20,6 +21,7 @@ AVAILABLE_DETECTORS = {
     "MediaPipe Pose (Default)": PoseDetectorMediapipe,
     "YOLOv8 (Simple)": PoseDetectorYOLO_G,
     "YOLOv8 (Complex)": PoseDetectorYOLO_C,
+    "YOLOv8 Pose+Seg": PoseDetectorYOLO_Seg,
 }
 
 controller = PoseCamController(AVAILABLE_DETECTORS)
