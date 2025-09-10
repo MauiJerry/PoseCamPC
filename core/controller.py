@@ -31,6 +31,8 @@ class PoseCamController:
 
         # This will be instantiated based on the config
         self.pose_detector = None
+        self.video_width = 0
+        self.video_height = 0
 
         # Get the list of cameras on initialization
         self.available_cameras = get_available_cameras()
@@ -189,10 +191,23 @@ class PoseCamController:
         plot_status = self.config['draw_ndi_overlay']
         timestamp = time.time_ns() // 1000  # microseconds
 
+        # --- Gather source and resolution info ---
+        source_type = self.config['input']
+        source_info = ""
+        if source_type == 'webcam':
+            cam_id = self.config['camera_id']
+            cam_name = self.available_cameras.get(cam_id, f"ID {cam_id}")
+            source_info = f"Webcam: {cam_name}"
+        elif source_type == 'file':
+            file_path = self.config.get('video_file')
+            source_info = f"File: {os.path.basename(file_path) if file_path else 'N/A'}"
+
+        resolution_info = f"{self.video_width}x{self.video_height}" if self.video_width > 0 else "Stream not active"
+
         try:
             with open(self.perf_log_file, 'a', newline='') as f:
                 writer = csv.writer(f)
-                writer.writerow([f'# Change', timestamp, model_name, plot_status])
+                writer.writerow([f'# Change', timestamp, model_name, plot_status, source_info, resolution_info])
         except Exception as e:
             logging.error(f"Failed to write performance event to log: {e}")
 
@@ -409,6 +424,8 @@ class PoseCamController:
                     else: # Successfully opened
                         width = int(self.video_capture.get(cv2.CAP_PROP_FRAME_WIDTH))
                         height = int(self.video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                        self.video_width = width
+                        self.video_height = height
                         if self.gui:
                             self.gui.update_video_info(width, height)
                             
@@ -475,6 +492,8 @@ class PoseCamController:
                     logging.info("Releasing video stream in background thread...")
                     self.video_capture.release()
                     self.video_capture = None
+                    self.video_width = 0
+                    self.video_height = 0
                     if self.gui:
                         self.gui.clear_video_info()
                 # Yield the CPU when idle
