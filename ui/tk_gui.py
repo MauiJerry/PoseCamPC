@@ -25,6 +25,8 @@ class PoseCamGUI:
         self.osc_port = tk.StringVar(value=str(self.controller.config['osc_port']))
         self.loop_video = tk.BooleanVar(value=self.controller.config['loop_video'])
         self.draw_ndi_overlay = tk.BooleanVar(value=self.controller.config['draw_ndi_overlay'])
+        self.draw_bboxes = tk.BooleanVar(value=self.controller.config['draw_bboxes'])
+        self.use_native_plot = tk.BooleanVar(value=self.controller.config['use_native_plot'])
         self.video_file_path = tk.StringVar(value=self.controller.config.get('video_file') or "")
         self.input_source = tk.StringVar(value=self.controller.config['input'])
         self.video_info_text = tk.StringVar(value="")
@@ -121,33 +123,37 @@ class PoseCamGUI:
         # NDI Name
         ndi_label = tk.Label(output_frame, text="NDI Stream:")
         ndi_entry = tk.Entry(output_frame, textvariable=self.ndi_name)
-        ndi_overlay_check = tk.Checkbutton(output_frame, text="Draw Overlay on NDI", variable=self.draw_ndi_overlay, command=self._on_ndi_overlay_change)
+        self.ndi_overlay_check = tk.Checkbutton(output_frame, text="Draw Overlay on NDI", variable=self.draw_ndi_overlay, command=self._on_ndi_overlay_change)
+        self.bbox_check = tk.Checkbutton(output_frame, text="Draw Bounding Boxes", variable=self.draw_bboxes, command=self._on_draw_bboxes_change)
+        self.native_plot_check = tk.Checkbutton(output_frame, text="Use Native Plotting", variable=self.use_native_plot, command=self._on_use_native_plot_change)
         self.btn_start_ndi = tk.Button(output_frame, text="Start", command=self.controller.start_ndi)
         self.btn_stop_ndi = tk.Button(output_frame, text="Stop", command=self.controller.stop_ndi, state=tk.DISABLED)
 
         ndi_label.grid(row=0, column=0, sticky="w", pady=2)
         ndi_entry.grid(row=1, column=0, columnspan=3, sticky="ew", pady=2)
-        ndi_overlay_check.grid(row=2, column=0, columnspan=3, sticky="w", pady=(0, 5))
-        self.btn_start_ndi.grid(row=3, column=1, sticky="ew")
-        self.btn_stop_ndi.grid(row=3, column=2, sticky="ew")
+        self.ndi_overlay_check.grid(row=2, column=0, columnspan=3, sticky="w")
+        self.bbox_check.grid(row=3, column=0, columnspan=3, sticky="w", padx=(20, 0))
+        self.native_plot_check.grid(row=4, column=0, columnspan=3, sticky="w", padx=(20, 0))
+        self.btn_start_ndi.grid(row=5, column=1, sticky="ew", pady=(5,0))
+        self.btn_stop_ndi.grid(row=5, column=2, sticky="ew", pady=(5,0))
 
         # OSC IP
         osc_ip_label = tk.Label(output_frame, text="OSC IP:")
         osc_ip_entry = tk.Entry(output_frame, textvariable=self.osc_ip)
-        osc_ip_label.grid(row=4, column=0, sticky="w", pady=(10, 2))
-        osc_ip_entry.grid(row=5, column=0, columnspan=3, sticky="ew", pady=2)
+        osc_ip_label.grid(row=6, column=0, sticky="w", pady=(10, 2))
+        osc_ip_entry.grid(row=7, column=0, columnspan=3, sticky="ew", pady=2)
 
         # OSC Port
         osc_port_label = tk.Label(output_frame, text="OSC Port:")
         osc_port_entry = tk.Entry(output_frame, textvariable=self.osc_port)
-        osc_port_label.grid(row=6, column=0, sticky="w", pady=2)
-        osc_port_entry.grid(row=7, column=0, columnspan=3, sticky="ew", pady=2)
+        osc_port_label.grid(row=8, column=0, sticky="w", pady=2)
+        osc_port_entry.grid(row=9, column=0, columnspan=3, sticky="ew", pady=2)
 
         # OSC Start/Stop Buttons
         self.btn_start_osc = tk.Button(output_frame, text="Start", command=self.controller.start_osc)
         self.btn_stop_osc = tk.Button(output_frame, text="Stop", command=self.controller.stop_osc, state=tk.DISABLED)
-        self.btn_start_osc.grid(row=8, column=1, sticky="ew", pady=(5,0))
-        self.btn_stop_osc.grid(row=8, column=2, sticky="ew", pady=(5,0))
+        self.btn_start_osc.grid(row=10, column=1, sticky="ew", pady=(5,0))
+        self.btn_stop_osc.grid(row=10, column=2, sticky="ew", pady=(5,0))
 
         output_frame.grid_columnconfigure(0, weight=1)
         output_frame.grid_columnconfigure(1, weight=1)
@@ -193,12 +199,25 @@ class PoseCamGUI:
     def _on_ndi_overlay_change(self):
         print("Change ndi overlay", self.draw_ndi_overlay.get())
         self.controller.update_config('draw_ndi_overlay', self.draw_ndi_overlay.get())
+        self._update_drawing_options_state()
+
+    def _on_draw_bboxes_change(self):
+        self.controller.update_config('draw_bboxes', self.draw_bboxes.get())
+
+    def _on_use_native_plot_change(self):
+        self.controller.update_config('use_native_plot', self.use_native_plot.get())
 
     def _on_source_change(self):
         """Called when a radio button is clicked."""
         source = self.input_source.get()
         self.controller.update_config('input', source)
         # The controller will call back to update_ui_config, which updates widget states
+
+    def _update_drawing_options_state(self):
+        """Enables/disables sub-options for drawing based on the main overlay checkbox."""
+        state = tk.NORMAL if self.draw_ndi_overlay.get() else tk.DISABLED
+        self.bbox_check.config(state=state)
+        self.native_plot_check.config(state=state)
 
     def _update_input_widget_states(self):
         """Enables/disables input widgets based on the selected source."""
@@ -310,6 +329,11 @@ class PoseCamGUI:
             self._update_input_widget_states()
         elif key == 'draw_ndi_overlay':
             self.draw_ndi_overlay.set(value)
+            self._update_drawing_options_state()
+        elif key == 'draw_bboxes':
+            self.draw_bboxes.set(value)
+        elif key == 'use_native_plot':
+            self.use_native_plot.set(value)
         elif key == 'detector_model':
             self.selected_detector.set(value)
 

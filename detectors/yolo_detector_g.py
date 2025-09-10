@@ -131,25 +131,39 @@ class PoseDetectorYOLO_G(AbstractPoseDetector):
 
         return self.latest_results
 
-    def draw_landmarks(self, frame):
+    def draw_landmarks(self, frame, draw_bbox: bool, use_native_plot: bool):
         """
         Draws the detected pose landmarks and connections on the given frame.
         """
-        if not self.latest_landmarks:
+        if use_native_plot:
+            if self.latest_results:
+                # The plot() method returns a new image with annotations (skeletons and bboxes).
+                annotated_frame = self.latest_results[0].plot()
+                # To modify the frame in-place, copy the annotated data back
+                frame[:] = annotated_frame[:]
             return
 
+        # --- Manual Drawing using OpenCV ---
         h, w, _ = frame.shape
 
+        # Draw bounding boxes if requested
+        if draw_bbox:
+            for i, (cx, cy, bw, bh) in enumerate(self.latest_bboxes):
+                x1 = int((cx - bw / 2) * w)
+                y1 = int((cy - bh / 2) * h)
+                x2 = int((cx + bw / 2) * w)
+                y2 = int((cy + bh / 2) * h)
+                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 1)
+
+        # Draw skeletons
         for skeleton in self.latest_landmarks:
             # Create a list of pixel coordinates for the current skeleton
-            pixel_coords = []
-            for (nx, ny, _, visibility) in skeleton:
-                if visibility > 0.1: # Draw only if confidence is reasonable
-                    px, py = int(nx * w), int(ny * h)
-                    pixel_coords.append((px, py))
-                    cv2.circle(frame, (px, py), 3, (0, 255, 0), -1)
-                else:
-                    pixel_coords.append(None) # Add a placeholder for missing keypoints
+            pixel_coords = [(int(nx * w), int(ny * h)) if v > 0.1 else None for nx, ny, _, v in skeleton]
+
+            # Draw keypoints
+            for px_coord in pixel_coords:
+                if px_coord:
+                    cv2.circle(frame, px_coord, 3, (0, 255, 0), -1)
 
             # Draw the skeleton connections
             for start_idx, end_idx in COCO17_EDGES:

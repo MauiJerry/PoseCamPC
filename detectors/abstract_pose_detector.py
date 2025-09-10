@@ -56,8 +56,12 @@ class AbstractPoseDetector(ABC):
         pass
 
     @abstractmethod
-    def draw_landmarks(self, frame):
+    def draw_landmarks(self, frame, draw_bbox: bool, use_native_plot: bool):
         pass
+
+    def has_segmentation(self) -> bool:
+        """Returns True if the last processed result contains segmentation data."""
+        return False
 
     def save_landmark_map_to_csv(self, filename="landmark_idname.csv"):
         """Saves the current landmark ID-to-name mapping to a CSV file."""
@@ -197,10 +201,9 @@ class AbstractPoseDetector(ABC):
         bundle = bundle_builder.build()
         
         # debug output the bundleStats each frame
-        if (frame_count % 5 == 0):
-            print(f"[OSC] frame{frame_count} Bundle Stats: Persons={bundleStats_personCount} ",
-                  f"MetaMsgs={bundleStats_metaCount}", f"LandmarkMsgs={bundleStats_numLandmarks}",
-                  f"TotalMsgs={bundleStats_totalMessages} ")
+        if frame_count > 0 and (frame_count % 5 == 0):
+            logging.debug(f"[OSC] frame{frame_count}: Persons={bundleStats_personCount}, "
+                          f"MetaMsgs={bundleStats_metaCount}, LandmarkMsgs={bundleStats_numLandmarks}, TotalMsgs={bundleStats_totalMessages}")
 
         # Log the first 2 bundles, and the first 2 bundles with person data.
         has_person = len(self.latest_landmarks) > 0

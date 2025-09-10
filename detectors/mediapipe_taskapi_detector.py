@@ -117,9 +117,11 @@ class PoseDetectorMediaPipeTask(AbstractPoseDetector):
         
         return result
 
-    def draw_landmarks(self, frame):
+    def draw_landmarks(self, frame, draw_bbox: bool, use_native_plot: bool):
+        # This detector ignores draw_bbox and use_native_plot as it has no bboxes
+        # and its default drawing is already the "native" implementation.
         """Draws the pose landmarks and optional segmentation mask on the frame."""
-        if not self.latest_results or not self.latest_results.pose_landmarks:
+        if not self.latest_results:
             return
 
         # --- 1. Draw Segmentation Mask (if available) ---
@@ -144,18 +146,23 @@ class PoseDetectorMediaPipeTask(AbstractPoseDetector):
             np.copyto(frame, blended, where=condition)
 
         # --- 2. Draw Pose Landmarks on top (in-place) ---
-        for person_landmarks in self.latest_results.pose_landmarks:
-            pose_landmarks_proto = landmark_pb2.NormalizedLandmarkList()
-            pose_landmarks_proto.landmark.extend([
-                landmark_pb2.NormalizedLandmark(x=lm.x, y=lm.y, z=lm.z)
-                for lm in person_landmarks
-            ])
-            mp.solutions.drawing_utils.draw_landmarks(
-                frame,
-                pose_landmarks_proto,
-                mp.solutions.pose.POSE_CONNECTIONS,
-                mp.solutions.drawing_styles.get_default_pose_landmarks_style()
-            )
+        if self.latest_results.pose_landmarks:
+            for person_landmarks in self.latest_results.pose_landmarks:
+                pose_landmarks_proto = landmark_pb2.NormalizedLandmarkList()
+                pose_landmarks_proto.landmark.extend([
+                    landmark_pb2.NormalizedLandmark(x=lm.x, y=lm.y, z=lm.z)
+                    for lm in person_landmarks
+                ])
+                mp.solutions.drawing_utils.draw_landmarks(
+                    frame,
+                    pose_landmarks_proto,
+                    mp.solutions.pose.POSE_CONNECTIONS,
+                    mp.solutions.drawing_styles.get_default_pose_landmarks_style()
+                )
+
+    def has_segmentation(self) -> bool:
+        """Returns True if the last processed result contains segmentation data."""
+        return bool(self.output_segmentation_masks and self.latest_results and self.latest_results.segmentation_masks)
 
     # --- Accessors to change settings at runtime ---
     

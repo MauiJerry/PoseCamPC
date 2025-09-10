@@ -45,6 +45,8 @@ class PoseCamController:
             'input': 'file',
             'loop_video': True,
             'draw_ndi_overlay': True,
+            'draw_bboxes': False,
+            'use_native_plot': False,
             'ndi_name': 'posePC',
             'osc_ip': '127.0.0.1',
             'osc_port': 5005,
@@ -56,8 +58,10 @@ class PoseCamController:
         }
 
         # --- Performance Logging Setup ---
+        log_dir = "logs"
+        os.makedirs(log_dir, exist_ok=True)
         log_timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-        self.perf_log_file = f"performance_log_{log_timestamp}.csv"
+        self.perf_log_file = os.path.join(log_dir, f"performance_log_{log_timestamp}.csv")
         self.model_perf_stats = {} # e.g., {'model_name': {'total_time': 0.0, 'frame_count': 0}}
         
         try:
@@ -183,6 +187,10 @@ class PoseCamController:
         # If the overlay setting changes, log it as a performance event
         if key == 'draw_ndi_overlay':
             self._log_perf_event() # Log this change to reset averages
+        elif key == 'draw_bboxes':
+            self._log_perf_event()
+        elif key == 'use_native_plot':
+            self._log_perf_event()
 
     def _log_perf_event(self):
         """Logs a configuration change event and resets the running average for the current model."""
@@ -250,6 +258,16 @@ class PoseCamController:
         running_avg_ms = running_avg_s * 1000
         # Calculate running average FPS, handle division by zero
         running_avg_fps = 1.0 / running_avg_s if running_avg_s > 0 else 0
+
+        # --- New per-frame logging to console/file ---
+        has_seg = self.pose_detector.has_segmentation()
+        seg_status = "Seg:Yes" if has_seg else "Seg:No"
+        logging.info(
+            f"Frame {self.frame_count: <4}: "
+            f"{frame_time_ms:6.1f}ms ({fps:4.1f} FPS) | "
+            f"Avg: {running_avg_ms:6.1f}ms ({running_avg_fps:4.1f} FPS) | "
+            f"Persons: {num_persons} | {seg_status}"
+        )
 
         try:
             with open(self.perf_log_file, 'a', newline='') as f:
@@ -461,7 +479,11 @@ class PoseCamController:
 
                     # 2. Conditionally draw landmarks on the original frame for NDI output
                     if self.config['draw_ndi_overlay']:
-                        self.pose_detector.draw_landmarks(frame)
+                        self.pose_detector.draw_landmarks(
+                            frame,
+                            draw_bbox=self.config.get('draw_bboxes', False),
+                            use_native_plot=self.config.get('use_native_plot', False)
+                        )
                     
                     # --- End Performance Timing ---
                     processing_end_time = time.perf_counter()
@@ -478,7 +500,11 @@ class PoseCamController:
                     preview_frame = frame.copy()
                     if not self.config['draw_ndi_overlay']:
                         # If the overlay wasn't drawn for NDI, draw it now for the preview.
-                        self.pose_detector.draw_landmarks(preview_frame)
+                        self.pose_detector.draw_landmarks(
+                            preview_frame,
+                            draw_bbox=self.config.get('draw_bboxes', False),
+                            use_native_plot=self.config.get('use_native_plot', False)
+                        )
 
                     # Put preview frame in queue
                     try:

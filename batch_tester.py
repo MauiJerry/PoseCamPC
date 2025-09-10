@@ -20,9 +20,9 @@ from detectors import (
 # order in list deteermines order of test 
 AVAILABLE_DETECTORS = {
     # "YOLOv8 Pose+Seg": PoseDetectorYOLO_Seg, # This model is very slow (~12fps)
-    "MediaPipe Task API": partial(PoseDetectorMediaPipeTask, output_segmentation=False),
-    "MediaPipe Task API +Seg": partial(PoseDetectorMediaPipeTask, output_segmentation=True),
-    "MediaPipe Legacy": PoseDetectorMediapipe,
+    "MediaPipe Task API": partial(PoseDetectorMediaPipeTask, model='full', output_segmentation=False),
+    "MediaPipe Task API +Seg": partial(PoseDetectorMediaPipeTask, model='heavy', output_segmentation=True), # Segmentation requires the 'heavy' model
+    # "MediaPipe Legacy": PoseDetectorMediapipe,
     "YOLOv11 (Simple)": partial(PoseDetectorYOLO_G, model_filename='yolo11n-pose.pt', display_name="YOLOv11 (Simple)"), # NOTE: Requires manual download
     "YOLOv8 (Simple)": partial(PoseDetectorYOLO_G, model_filename='yolov8n-pose.pt', display_name="YOLOv8 (Simple)"),
 #   "YOLOv8 (Complex)": PoseDetectorYOLO_C,
@@ -201,8 +201,10 @@ class BatchTesterGUI:
 
 if __name__ == "__main__":
     # --- Setup comprehensive logging ---
+    log_dir = "logs"
+    os.makedirs(log_dir, exist_ok=True)
     log_timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-    log_filename = f"batch_test_run_{log_timestamp}.log"
+    log_filename = os.path.join(log_dir, f"batch_test_run_{log_timestamp}.log")
     
     # Configure logging to write to both a file and the console
     logging.basicConfig(

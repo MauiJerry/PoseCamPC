@@ -33,10 +33,9 @@ pip-delete-this-directory.txt
 Thumbs.db
 ehthumbs.db
 
-# Generated data files and logs
-*.log
+# Generated data and log files
+logs/
 *.csv
-*.log
 *.cfg
 
 # Backup files

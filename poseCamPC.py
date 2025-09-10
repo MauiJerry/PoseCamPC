@@ -3,6 +3,7 @@ import time
 import datetime
 import logging
 from core.controller import PoseCamController
+import os
 from functools import partial
 from core.osc_listener import OSCListener
 from ui.tk_gui import PoseCamGUI
@@ -15,15 +16,25 @@ from detectors import (
 )
 
 # Configure basic logging to show INFO level messages
-logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
+# --- Setup comprehensive logging ---
+log_dir = "logs"
+os.makedirs(log_dir, exist_ok=True)
+log_timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+log_filename = os.path.join(log_dir, f"poseCamPC_run_{log_timestamp}.log")
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(asctime)s] [%(levelname)s] %(message)s',
+    handlers=[logging.FileHandler(log_filename), logging.StreamHandler()]
+)
 
 # --- Model Configuration ---
 # Create a mapping of user-friendly names to detector classes.
 # This will be passed to the controller and then to the UI.
 AVAILABLE_DETECTORS = {
     "MediaPipe Legacy (Default)": PoseDetectorMediapipe,
-    "MediaPipe Task API": partial(PoseDetectorMediaPipeTask, output_segmentation=False),
-    "MediaPipe Task API +Seg": partial(PoseDetectorMediaPipeTask, output_segmentation=True),
+    "MediaPipe Task API": partial(PoseDetectorMediaPipeTask, model='full', output_segmentation=False),
+    "MediaPipe Task API +Seg": partial(PoseDetectorMediaPipeTask, model='heavy', output_segmentation=True), # Segmentation requires the 'heavy' model
     "YOLOv8 (Simple)": partial(PoseDetectorYOLO_G, model_filename='yolov8n-pose.pt', display_name="YOLOv8 (Simple)"),
     "YOLOv11 (Simple)": partial(PoseDetectorYOLO_G, model_filename='yolo11n-pose.pt', display_name="YOLOv11 (Simple)"), # NOTE: Requires manual download
     "YOLOv8 (Complex)": PoseDetectorYOLO_C,

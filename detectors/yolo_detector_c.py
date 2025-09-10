@@ -189,7 +189,20 @@ class PoseDetectorYOLO_C(AbstractPoseDetector):
         self.latest_bboxes = out_bboxes
         return r
 
-    def draw_landmarks(self, frame) -> None:
+    def draw_landmarks(self, frame, draw_bbox: bool, use_native_plot: bool) -> None:
+        # This detector has no separate "native plot", its manual implementation is the only one.
+        # We ignore `use_native_plot`.
+
+        h, w, _ = frame.shape
+
+        if draw_bbox:
+            for (cx, cy, bw, bh) in self.latest_bboxes:
+                x1 = int((cx - bw / 2) * w)
+                y1 = int((cy - bh / 2) * h)
+                x2 = int((cx + bw / 2) * w)
+                y2 = int((cy + bh / 2) * h)
+                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 1)
+
         if not self._last_px:
             return
         for person_xy in self._last_px:

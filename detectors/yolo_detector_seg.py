@@ -99,3 +99,11 @@ class PoseDetectorYOLO_Seg(AbstractPoseDetector):
             for px_coord in pixel_coords:
                 if px_coord:
                     cv2.circle(frame, px_coord, 3, (0, 255, 0), -1)
+
+    def has_segmentation(self) -> bool:
+        """Returns True if the last processed result contains segmentation data."""
+        if not self.latest_results:
+            return False
+        # self.latest_results is a tuple of (pose_results, seg_results)
+        _, seg_results = self.latest_results
+        return bool(seg_results and seg_results[0].masks)

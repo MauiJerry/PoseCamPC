@@ -34,7 +34,9 @@ class PoseDetectorMediapipe(AbstractPoseDetector):
         self.latest_bboxes = [] # MediaPipe doesn't provide bboxes, so ensure this is empty
         return self.latest_results
 
-    def draw_landmarks(self, frame):
+    def draw_landmarks(self, frame, draw_bbox: bool, use_native_plot: bool):
+        # This detector ignores draw_bbox and use_native_plot as it has no bboxes
+        # and its default drawing is already the "native" implementation.
         # Use the latest results from process_image to avoid reprocessing
         if self.latest_results and self.latest_results.pose_landmarks:
             mp.drawing_utils.draw_landmarks(frame, self.latest_results.pose_landmarks, mp.pose.POSE_CONNECTIONS)
