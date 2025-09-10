@@ -1,0 +1,21 @@
+notes for PoseCamPC
+sept 9 2025
+
+revised PoseCamPC with Yolo pose in two forms - one simple by Gemini and one more complex by Chat.
+Also built one that is yolo w both segmentation and pose. segmentation looked cool - got a decent mask layer, but since both have to run separately, frame rate went down to 12fps 
+
+Also instrumented using batch_test.py to run all models against all files in a folder with and wo drawing overlay. Should have draw using the _plot and mp.drawing but i think it is now all using opencv draw.  Which invalidates time testing that part. 
+Amdahl's law should be applied - dont optimize w/o testing.
+
+Having found it very easy to add models via chat/gemini, i asked about new versions of both yolo and media pipe.  I now have code out in c/g to bring in that builds
+a) yolo in multiple sizes and versions 8n current, and 9, 10, 11 with larger sizes
+b) mediapipe new Task API which also exposes a lot of options (like segmentation)
+
+We can build detectors for all these and use batch_test.py to find fastest/best.
+
+Other enhancments - actually pass the confidence value and z so each landmark has xyzc sent via osc.
+Send bounding box in osc
+Send segmentation as either composit or separate ndi layer.
+
+Also out there in G/C land are PoseCamTox Pop updates to create clients in TD that draw dots, lines, etc.
+And another option to build Unreal client 
