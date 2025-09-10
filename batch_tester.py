@@ -4,6 +4,7 @@ import threading
 import os
 import time
 import logging
+import datetime
 from functools import partial
 
 from core.controller import PoseCamController, AppState
@@ -16,14 +17,15 @@ from detectors import (
 )
 
 # --- Model Configuration ---
+# order in list deteermines order of test 
 AVAILABLE_DETECTORS = {
     # "YOLOv8 Pose+Seg": PoseDetectorYOLO_Seg, # This model is very slow (~12fps)
-    "MediaPipe Legacy": PoseDetectorMediapipe,
     "MediaPipe Task API": partial(PoseDetectorMediaPipeTask, output_segmentation=False),
     "MediaPipe Task API +Seg": partial(PoseDetectorMediaPipeTask, output_segmentation=True),
-    "YOLOv8 (Simple)": PoseDetectorYOLO_G,
+    "MediaPipe Legacy": PoseDetectorMediapipe,
     "YOLOv8 (Complex)": PoseDetectorYOLO_C,
-}
+    "YOLOv8 (Simple)": PoseDetectorYOLO_G,
+
 
 class BatchTesterGUI:
     def __init__(self, root, controller):
@@ -151,14 +153,14 @@ class BatchTesterGUI:
         current_run = 0
 
         # --- Main Test Loop ---
-        for video_file in video_files:
-            for model_name in detector_names:
+        for model_name in detector_names:
+            for video_file in video_files:
                 for overlay_enabled in overlay_options:
                     current_run += 1
                     self.log("-" * 50)
                     self.log(f"Run {current_run}/{total_runs}:")
-                    self.log(f"  File: {os.path.basename(video_file)}")
                     self.log(f"  Model: {model_name}")
+                    self.log(f"  File: {os.path.basename(video_file)}")
                     self.log(f"  Overlay: {'On' if overlay_enabled else 'Off'}")
 
                     # Configure the controller for this run (must be done while stopped)
@@ -189,7 +191,17 @@ class BatchTesterGUI:
         self.root.destroy()
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
+    # --- Setup comprehensive logging ---
+    log_timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+    log_filename = f"batch_test_run_{log_timestamp}.log"
+    
+    # Configure logging to write to both a file and the console
+    logging.basicConfig(
+        level=logging.INFO,
+        format='[%(asctime)s] [%(levelname)s] %(message)s',
+        handlers=[logging.FileHandler(log_filename), logging.StreamHandler()]
+    )
+
     controller = PoseCamController(AVAILABLE_DETECTORS)
     processing_thread = threading.Thread(target=controller.run, daemon=True)
     processing_thread.start()

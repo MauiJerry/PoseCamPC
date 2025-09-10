@@ -36,6 +36,7 @@ ehthumbs.db
 # Generated data files and logs
 *.log
 *.csv
+*.log
 *.cfg
 
 # Backup files
