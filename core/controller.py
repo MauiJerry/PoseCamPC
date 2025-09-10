@@ -65,8 +65,7 @@ class PoseCamController:
                 writer = csv.writer(f)
                 # Add the header for the event/metadata lines
                 writer.writerow(['# event_type', 'timestamp_us', 'model_name', 'overlay_status', 'source_info', 'resolution'])
-                writer.writerow(['model', 'frame_num', 'time_for_frame_ms', 'running_avg_ms'])
-                writer.writerow(['# event_type', 'timestamp_us', 'model_name', 'overlay_status', 'source_info', 'resolution'])
+                writer.writerow(['model', 'frame_num', 'time_for_frame_ms', 'fps', 'running_avg_ms', 'running_avg_fps'])
 
         except Exception as e:
             logging.error(f"Failed to create performance log file: {e}")
@@ -230,6 +229,9 @@ class PoseCamController:
 
         model_name = self.config['detector_model']
         frame_time_ms = frame_time_s * 1000
+        
+        # Calculate instantaneous FPS, handle division by zero
+        fps = 1.0 / frame_time_s if frame_time_s > 0 else 0
 
         # Initialize stats for a model if not present
         if model_name not in self.model_perf_stats:
@@ -243,11 +245,13 @@ class PoseCamController:
         # Calculate running average
         running_avg_s = stats['total_time'] / stats['frame_count']
         running_avg_ms = running_avg_s * 1000
+        # Calculate running average FPS, handle division by zero
+        running_avg_fps = 1.0 / running_avg_s if running_avg_s > 0 else 0
 
         try:
             with open(self.perf_log_file, 'a', newline='') as f:
                 writer = csv.writer(f)
-                writer.writerow([model_name, self.frame_count, frame_time_ms, running_avg_ms])
+                writer.writerow([model_name, self.frame_count, frame_time_ms, fps, running_avg_ms, running_avg_fps])
         except Exception as e:
             logging.error(f"Failed to write frame performance to log: {e}")
 

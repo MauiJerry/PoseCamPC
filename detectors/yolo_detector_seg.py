@@ -3,6 +3,8 @@ import os
 from ultralytics import YOLO
 from .abstract_pose_detector import AbstractPoseDetector
 
+# CAVEAT: running two YOLO models per frame is computationally expensive
+# it gets 
 # Define the connections between COCO keypoints for drawing the skeleton
 COCO17_EDGES = [
     (5, 7), (7, 9), (6, 8), (8, 10),

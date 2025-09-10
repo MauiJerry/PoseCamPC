@@ -10,7 +10,7 @@ from detectors import (
     PoseDetectorMediapipe,
     PoseDetectorYOLO_G,
     PoseDetectorYOLO_C,
-    PoseDetectorYOLO_Seg
+    # PoseDetectorYOLO_Seg
 )
 
 # --- Model Configuration ---
@@ -18,7 +18,7 @@ AVAILABLE_DETECTORS = {
     "MediaPipe Pose (Default)": PoseDetectorMediapipe,
     "YOLOv8 (Simple)": PoseDetectorYOLO_G,
     "YOLOv8 (Complex)": PoseDetectorYOLO_C,
-    "YOLOv8 Pose+Seg": PoseDetectorYOLO_Seg,
+    # "YOLOv8 Pose+Seg": PoseDetectorYOLO_Seg, # This model is very slow (~12fps)
 }
 
 class BatchTesterGUI:
