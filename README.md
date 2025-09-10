@@ -101,6 +101,7 @@ This section allows you to choose the underlying AI model for pose detection. Th
     -   **MediaPipe Task API**: The modern MediaPipe API, which can be configured for multiple people and can output segmentation masks.
     -   **MediaPipe Task API +Seg**: The same modern API, but with person segmentation enabled.
     -   **YOLOv8 (Simple)**: A fast, multi-person model with 17 landmarks (COCO standard). This version uses a simple, high-level API.
+    -   **YOLOv11 (Simple)**: The latest generation YOLO pose model from Ultralytics, offering potential performance and accuracy improvements. **Requires manual download.**
     -   **YOLOv8 (Complex)**: The same YOLOv8 model, but with more exposed parameters for fine-tuning detection performance.
 
 ### Output Settings
@@ -212,7 +213,7 @@ Used by all `MediaPipe` models.
 | 16 | `wrist_r` | | |
 
 #### COCO Landmark Map (17 Landmarks)
-Used by `YOLOv8 (Simple)` and `YOLOv8 (Complex)` models.
+Used by all `YOLO` models.
 
 | ID | Name | ID | Name |
 |:---|:---|:---|:---|

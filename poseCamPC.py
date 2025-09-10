@@ -24,7 +24,8 @@ AVAILABLE_DETECTORS = {
     "MediaPipe Legacy (Default)": PoseDetectorMediapipe,
     "MediaPipe Task API": partial(PoseDetectorMediaPipeTask, output_segmentation=False),
     "MediaPipe Task API +Seg": partial(PoseDetectorMediaPipeTask, output_segmentation=True),
-    "YOLOv8 (Simple)": PoseDetectorYOLO_G,
+    "YOLOv8 (Simple)": partial(PoseDetectorYOLO_G, model_filename='yolov8n-pose.pt', display_name="YOLOv8 (Simple)"),
+    "YOLOv11 (Simple)": partial(PoseDetectorYOLO_G, model_filename='yolo11n-pose.pt', display_name="YOLOv11 (Simple)"), # NOTE: Requires manual download
     "YOLOv8 (Complex)": PoseDetectorYOLO_C,
     # "YOLOv8 Pose+Seg": PoseDetectorYOLO_Seg, # This model is very slow
 }

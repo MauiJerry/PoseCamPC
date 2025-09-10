@@ -51,11 +51,9 @@ class PoseDetectorMediaPipeTask(AbstractPoseDetector):
         self._create_landmarker()
 
     def _get_model_path(self, model_key: str) -> str:
-        """Constructs a relative path to the model file, assuming execution from project root."""
-        model_cache_dir = 'model_cache'
-        # The base directory is now implicitly the project root (current working directory)
-        # We still ensure the directory exists.
-        os.makedirs(model_cache_dir, exist_ok=True)
+        """Constructs an absolute path to the model file."""
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        model_cache_dir = os.path.join(project_root, 'model_cache')
         model_filename = MODELS.get(model_key, DEFAULT_MODEL)
         return os.path.join(model_cache_dir, model_filename)
 
@@ -79,13 +77,12 @@ class PoseDetectorMediaPipeTask(AbstractPoseDetector):
             self._landmarker = vision.PoseLandmarker.create_from_options(options)
             logging.info("PoseLandmarker created successfully.")
         except Exception as e:
-            # For the error message, construct the absolute path so the user knows exactly where to put the file.
-            full_model_path_for_error = os.path.abspath(self._model_path)
+            # self._model_path is now already absolute
             error_message = (
                 f"Failed to create PoseLandmarker: {e}\n"
                 "This is likely because the model file is missing.\n"
                 f"Please download '{MODELS.get(self._model_key, DEFAULT_MODEL)}' from 'https://developers.google.com/mediapipe/solutions/vision/pose_landmarker/index#models'\n"
-                f"and place it in the '{os.path.dirname(full_model_path_for_error)}' directory."
+                f"and place it in the '{os.path.dirname(self._model_path)}' directory."
             )
             logging.error(error_message)
             raise RuntimeError(error_message) from e

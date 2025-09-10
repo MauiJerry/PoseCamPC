@@ -23,9 +23,10 @@ AVAILABLE_DETECTORS = {
     "MediaPipe Task API": partial(PoseDetectorMediaPipeTask, output_segmentation=False),
     "MediaPipe Task API +Seg": partial(PoseDetectorMediaPipeTask, output_segmentation=True),
     "MediaPipe Legacy": PoseDetectorMediapipe,
-    "YOLOv8 (Complex)": PoseDetectorYOLO_C,
-    "YOLOv8 (Simple)": PoseDetectorYOLO_G,
-
+    "YOLOv11 (Simple)": partial(PoseDetectorYOLO_G, model_filename='yolo11n-pose.pt', display_name="YOLOv11 (Simple)"), # NOTE: Requires manual download
+    "YOLOv8 (Simple)": partial(PoseDetectorYOLO_G, model_filename='yolov8n-pose.pt', display_name="YOLOv8 (Simple)"),
+#   "YOLOv8 (Complex)": PoseDetectorYOLO_C,
+}
 
 class BatchTesterGUI:
     def __init__(self, root, controller):
@@ -152,32 +153,40 @@ class BatchTesterGUI:
         total_runs = len(video_files) * len(detector_names) * len(overlay_options)
         current_run = 0
 
-        # --- Main Test Loop ---
-        for model_name in detector_names:
-            for video_file in video_files:
-                for overlay_enabled in overlay_options:
-                    current_run += 1
-                    self.log("-" * 50)
-                    self.log(f"Run {current_run}/{total_runs}:")
-                    self.log(f"  Model: {model_name}")
-                    self.log(f"  File: {os.path.basename(video_file)}")
-                    self.log(f"  Overlay: {'On' if overlay_enabled else 'Off'}")
+        try:
+            # --- Main Test Loop ---
+            for model_name in detector_names:
+                for video_file in video_files:
+                    for overlay_enabled in overlay_options:
+                        current_run += 1
+                        self.log("-" * 50)
+                        self.log(f"Run {current_run}/{total_runs}:")
+                        self.log(f"  Model: {model_name}")
+                        self.log(f"  File: {os.path.basename(video_file)}")
+                        self.log(f"  Overlay: {'On' if overlay_enabled else 'Off'}")
 
-                    # Configure the controller for this run (must be done while stopped)
-                    self.controller.change_detector_model(model_name)
-                    self.controller.update_config('video_file', video_file)
-                    self.controller.update_config('input', 'file')
-                    self.controller.update_config('loop_video', False) # Ensure video ends
-                    self.controller.update_config('draw_ndi_overlay', overlay_enabled)
-                    
-                    self.controller.start() # Start processing
+                        # Configure the controller for this run (must be done while stopped)
+                        self.controller.change_detector_model(model_name)
+                        self.controller.update_config('video_file', video_file)
+                        self.controller.update_config('input', 'file')
+                        self.controller.update_config('loop_video', False) # Ensure video ends
+                        self.controller.update_config('draw_ndi_overlay', overlay_enabled)
+                        
+                        self.controller.start() # Start processing
 
-                    # Wait for the controller to finish the file
-                    while self.controller.state in [AppState.RUNNING, AppState.PAUSED]:
-                        time.sleep(0.5)
-                    
-                    self.log("  ... Run complete.")
-                    time.sleep(1) # Small delay between runs
+                        # Wait for the controller to finish the file
+                        while self.controller.state in [AppState.RUNNING, AppState.PAUSED]:
+                            time.sleep(0.5)
+                        
+                        self.log("  ... Run complete.")
+                        time.sleep(1) # Small delay between runs
+        except Exception as e:
+            self.log("=" * 50)
+            self.log("FATAL ERROR: Batch test halted.")
+            self.log(f"Details: {e}")
+            logging.exception("A critical error occurred during the batch test:")
+            self.log("Please check the log file for the full traceback.")
+            return # Stop the batch process
 
         self.log("=" * 50)
         self.log("BATCH TESTING COMPLETE!")

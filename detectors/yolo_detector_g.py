@@ -1,5 +1,6 @@
 # In yolo_detector.py, gemini version
 
+import logging
 import cv2
 import os
 from ultralytics import YOLO
@@ -14,30 +15,58 @@ COCO17_EDGES = [
 ]
 
 class PoseDetectorYOLO_G(AbstractPoseDetector):
-    def __init__(self, model_filename='yolov8n-pose.pt'):
+    def __init__(self, model_filename='yolov8n-pose.pt', display_name=None):
         """
         Initializes the YOLO Pose Detector.
         Args:
             model_filename (str): The name of the YOLO pose model file (e.g., 'yolov8n-pose.pt').
                                   The model will be downloaded to a local 'model_cache' directory.
+            display_name (str, optional): A name for the model to be used in logs and OSC.
         """
         super().__init__()
-        
-        # Define the cache directory relative to the project root
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        model_cache_dir = os.path.join(base_dir, 'model_cache')
-        os.makedirs(model_cache_dir, exist_ok=True)
-        
-        # Construct the full path. Ultralytics will download to this path if the file doesn't exist.
-        full_model_path = os.path.join(model_cache_dir, model_filename)
-        
+
+        # Construct an absolute path to the model cache directory relative to this script file
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        model_cache_dir = os.path.join(project_root, 'model_cache')
+        model_path = os.path.join(model_cache_dir, model_filename)
+
+        if not os.path.exists(model_path):
+            # --- Add diagnostic logging ---
+            dir_contents = "Directory does not exist."
+            if os.path.isdir(model_cache_dir):
+                dir_contents = "\n".join(os.listdir(model_cache_dir))
+                if not dir_contents:
+                    dir_contents = "<Directory is empty>"
+            
+            error_message = (
+                f"YOLO model file not found at: {model_path}\n"
+                f"\nContents of '{model_cache_dir}':\n---\n{dir_contents}\n---\n"
+                f"Please download '{model_filename}' manually and place it in the '{model_cache_dir}' directory.\n"
+                "You can find official models on the Ultralytics GitHub releases page."
+            )
+            logging.error(error_message)
+            raise FileNotFoundError(error_message)
+
         # Instantiate the YOLO model
-        self.model = YOLO(full_model_path)
+        try:
+            self.model = YOLO(model_path)
+        except Exception as e:
+            error_message = (
+                f"Failed to load YOLO model from path: {model_path}\n"
+                f"Error: {e}\n"
+                "The file may be corrupt. Try deleting it and downloading it again."
+            )
+            logging.error(error_message)
+            raise RuntimeError(error_message) from e
         
         # --- Override instance variables from the abstract class ---
         
         # 1. Set the model name for OSC metadata
-        self.model_name = f"YOLOv8 ({model_filename})"
+        if display_name:
+            self.model_name = display_name
+        else:
+            # Fallback for backward compatibility or direct instantiation
+            self.model_name = f"YOLO ({model_filename})"
 
         # 2. Define the landmark mapping for YOLO (COCO keypoints)
         # This is crucial for downstream applications to understand the data.

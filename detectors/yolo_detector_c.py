@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import List, Tuple, Dict, Optional, Any
 import numpy as np
 import cv2
+import logging
 import os
 
 try:
@@ -62,20 +63,43 @@ class PoseDetectorYOLO_C(AbstractPoseDetector):
         if YOLO is None:
             raise RuntimeError(f"Ultralytics import failed: {_YOLO_ERR}\nInstall with: pip install ultralytics")
 
-        # Define the cache directory relative to the project root
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        model_cache_dir = os.path.join(base_dir, 'model_cache')
-        os.makedirs(model_cache_dir, exist_ok=True)
-        
-        # Construct the full path. Ultralytics will download to this path if the file doesn't exist.
-        full_model_path = os.path.join(model_cache_dir, model_filename)
-
         # Fill in required meta fields
         self.model_name = f"YOLO-Pose:{model_filename}"
         self.schema_name = "COCO17"
         self.pose_id_to_name = COCO17_ID2NAME.copy()
 
-        self._model = YOLO(full_model_path)
+        # Construct an absolute path to the model cache directory relative to this script file
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        model_cache_dir = os.path.join(project_root, 'model_cache')
+        model_path = os.path.join(model_cache_dir, model_filename)
+
+        if not os.path.exists(model_path):
+            # --- Add diagnostic logging ---
+            dir_contents = "Directory does not exist."
+            if os.path.isdir(model_cache_dir):
+                dir_contents = "\n".join(os.listdir(model_cache_dir))
+                if not dir_contents:
+                    dir_contents = "<Directory is empty>"
+
+            error_message = (
+                f"YOLO model file not found at: {model_path}\n"
+                f"\nContents of '{model_cache_dir}':\n---\n{dir_contents}\n---\n"
+                f"Please download '{model_filename}' manually and place it in the '{model_cache_dir}' directory.\n"
+                "You can find official models on the Ultralytics GitHub releases page."
+            )
+            logging.error(error_message)
+            raise FileNotFoundError(error_message)
+
+        try:
+            self._model = YOLO(model_path)
+        except Exception as e:
+            error_message = (
+                f"Failed to load YOLO model from path: {model_path}\n"
+                f"Error: {e}\n"
+                "The file may be corrupt. Try deleting it and downloading it again."
+            )
+            logging.error(error_message)
+            raise RuntimeError(error_message) from e
         self._conf = conf
         self._iou = iou
         self._imgsz = imgsz
