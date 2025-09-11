@@ -49,7 +49,7 @@ class AbstractPoseDetector(ABC):
         self._osc_person_bundle_log_count = 0
         self.image_height = 0
         self.image_width = 0
-        print("AbstractPoseDetector initialized.")
+        logging.info("AbstractPoseDetector initialized.")
 
     @abstractmethod
     def process_image(self, image):

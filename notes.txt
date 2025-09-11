@@ -19,3 +19,6 @@ Send segmentation as either composit or separate ndi layer.
 
 Also out there in G/C land are PoseCamTox Pop updates to create clients in TD that draw dots, lines, etc.
 And another option to build Unreal client 
+
+asked gemini (chat?) to build detectors for some other models but have yet to save code. The chat is saved in a md file in folder.  Some changes were made to Yolo/MP models since.
+

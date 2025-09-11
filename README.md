@@ -97,7 +97,7 @@ This section determines where the video comes from.
 This section allows you to choose the underlying AI model for pose detection. The application must be stopped to change models.
 
 -   **Pose Model Dropdown**: Select which pose detection model to use.
-    -   **MediaPipe Legacy (Default)**: The original, balanced single-person model from Google.
+    -   **MediaPipe v8n (Default)**: The original, balanced single-person model from Google.
     -   **MediaPipe Task API**: The modern MediaPipe API, which can be configured for multiple people and can output segmentation masks.
     -   **MediaPipe Task API +Seg**: The same modern API, but with person segmentation enabled. **Requires the manual download of the `pose_landmarker_heavy.task` model.**
     -   **YOLOv8 (Simple)**: A fast, multi-person model with 17 landmarks (COCO standard). This version uses a simple, high-level API.

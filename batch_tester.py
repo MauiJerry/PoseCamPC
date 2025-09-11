@@ -20,9 +20,10 @@ from detectors import (
 # order in list deteermines order of test 
 AVAILABLE_DETECTORS = {
     # "YOLOv8 Pose+Seg": PoseDetectorYOLO_Seg, # This model is very slow (~12fps)
-    "MediaPipe Task API": partial(PoseDetectorMediaPipeTask, model='full', output_segmentation=False),
-    "MediaPipe Task API +Seg": partial(PoseDetectorMediaPipeTask, model='heavy', output_segmentation=True), # Segmentation requires the 'heavy' model
-    # "MediaPipe Legacy": PoseDetectorMediapipe,
+    # "MediaPipe Task API": partial(PoseDetectorMediaPipeTask, model='full', output_segmentation=False),
+    "MediaPipe Task API +Seg (GPU)": partial(PoseDetectorMediaPipeTask, model='heavy', output_segmentation=True), # Segmentation requires the 'heavy' model
+    "MediaPipe Task API +Seg (CPU)": partial(PoseDetectorMediaPipeTask, model='heavy', output_segmentation=True, delegate='CPU'),
+    # "MediaPipe v8n": PoseDetectorMediapipe,
     "YOLOv11 (Simple)": partial(PoseDetectorYOLO_G, model_filename='yolo11n-pose.pt', display_name="YOLOv11 (Simple)"), # NOTE: Requires manual download
     "YOLOv8 (Simple)": partial(PoseDetectorYOLO_G, model_filename='yolov8n-pose.pt', display_name="YOLOv8 (Simple)"),
 #   "YOLOv8 (Complex)": PoseDetectorYOLO_C,

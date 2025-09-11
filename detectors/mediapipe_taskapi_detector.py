@@ -2,14 +2,26 @@
 
 from __future__ import annotations
 import mediapipe as mp
+import logging
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
+
+# The location of the 'Delegate' enum has changed in different versions of MediaPipe.
+# This try-except block ensures compatibility by trying multiple import paths.
+try:
+    from mediapipe.tasks.python.core.base_options import Delegate
+except ImportError:
+    try:
+        from mediapipe.tasks.python.components.processors import Delegate
+    except ImportError:
+        Delegate = None
+        logging.warning("Could not import 'Delegate' from mediapipe. CPU/GPU selection will be unavailable. Consider upgrading the 'mediapipe' package.")
+
 from mediapipe.framework.formats import landmark_pb2
 import numpy as np
 import cv2
 import os
-import time # Keep for timestamping
-import logging
+import time  # Keep for timestamping
 
 from .abstract_pose_detector import AbstractPoseDetector
 
@@ -26,12 +38,13 @@ class PoseDetectorMediaPipeTask(AbstractPoseDetector):
     MediaPipe Pose Detector implementation using the modern Task API.
     This version is more configurable and supports features like segmentation masks.
     """
-    def __init__(self, model: str = 'full', num_poses: int = 1, output_segmentation: bool = False):
+    def __init__(self, model: str = 'full', num_poses: int = 1, output_segmentation: bool = False, delegate: str | None = None):
         super().__init__()
         
         # --- Configuration Options ---
         self._model_key = model
         self.num_poses = num_poses
+        self.delegate = delegate
         self.min_pose_detection_confidence = 0.5
         self.min_pose_presence_confidence = 0.5
         self.min_tracking_confidence = 0.5
@@ -44,7 +57,8 @@ class PoseDetectorMediaPipeTask(AbstractPoseDetector):
         self._landmarker: vision.PoseLandmarker | None = None
         
         seg_suffix = " +Seg" if self.output_segmentation_masks else ""
-        self.model_name = f"MediaPipe Task ({self._model_key}{seg_suffix})"
+        delegate_suffix = f" ({self.delegate})" if self.delegate else ""
+        self.model_name = f"MediaPipe Task ({self._model_key}{seg_suffix}{delegate_suffix})"
         # The landmark map is the same as the legacy API, which is convenient
         self.pose_id_to_name = {lm.value: lm.name.lower() for lm in mp.solutions.pose.PoseLandmark}
         
@@ -60,8 +74,26 @@ class PoseDetectorMediaPipeTask(AbstractPoseDetector):
     def _create_landmarker(self):
         """Creates or re-creates the PoseLandmarker instance with current settings."""
         logging.info(f"Creating PoseLandmarker with model: {self._model_path}")
+
+        if not os.path.exists(self._model_path):
+            error_message = (
+                f"Model file not found at: {self._model_path}\n"
+                "Please ensure the file is downloaded and placed in the correct directory."
+            )
+            logging.error(error_message)
+            raise FileNotFoundError(error_message)
+
         try:
-            base_options = python.BaseOptions(model_asset_path=self._model_path)
+            # Read the model file into a buffer to bypass pathing issues in the library
+            with open(self._model_path, 'rb') as f:
+                model_buffer = f.read()
+
+            base_options = python.BaseOptions(model_asset_buffer=model_buffer)
+            if Delegate and self.delegate == 'CPU':
+                base_options.delegate = Delegate.CPU
+            elif Delegate and self.delegate == 'GPU':
+                base_options.delegate = Delegate.GPU
+
             options = vision.PoseLandmarkerOptions(
                 base_options=base_options,
                 running_mode=vision.RunningMode.VIDEO,
@@ -77,12 +109,10 @@ class PoseDetectorMediaPipeTask(AbstractPoseDetector):
             self._landmarker = vision.PoseLandmarker.create_from_options(options)
             logging.info("PoseLandmarker created successfully.")
         except Exception as e:
-            # self._model_path is now already absolute
             error_message = (
-                f"Failed to create PoseLandmarker: {e}\n"
-                "This is likely because the model file is missing.\n"
-                f"Please download '{MODELS.get(self._model_key, DEFAULT_MODEL)}' from 'https://developers.google.com/mediapipe/solutions/vision/pose_landmarker/index#models'\n"
-                f"and place it in the '{os.path.dirname(self._model_path)}' directory."
+                f"Failed to create PoseLandmarker from model file: {self._model_path}\n"
+                f"Error: {e}\n"
+                "The file may be corrupt or incompatible. Try downloading it again."
             )
             logging.error(error_message)
             raise RuntimeError(error_message) from e
@@ -101,12 +131,20 @@ class PoseDetectorMediaPipeTask(AbstractPoseDetector):
         
         # For VIDEO mode, we need a monotonically increasing timestamp.
         timestamp_ms = int(time.monotonic() * 1000)
-        result = self._landmarker.detect_for_video(mp_image, timestamp_ms)
+        try:
+            result = self._landmarker.detect_for_video(mp_image, timestamp_ms)
+        except Exception as e:
+            logging.error(f"MediaPipe detect_for_video failed: {e}")
+            result = None
 
         # --- Retrieve and format the latest result ---
         self.latest_results = result
         self.latest_landmarks = []
         self.latest_bboxes = [] # MediaPipe doesn't provide bboxes, so ensure this is empty
+
+        # --- Diagnostic Logging ---
+        if self.output_segmentation_masks and (not result or not result.segmentation_masks):
+            logging.warning("Segmentation is enabled, but the model did not return any masks. This can happen if the 'heavy' model is not used or if detection confidence is too low.")
             
         if result and result.pose_landmarks:
             for person_landmarks in result.pose_landmarks:

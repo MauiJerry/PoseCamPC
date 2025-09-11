@@ -24,7 +24,7 @@ class PoseCamController:
         self.state = AppState.INIT
 
         # Default config values
-        default_detector_name = "MediaPipe Pose (Default)"
+        default_detector_name = "MediaPipe v8n (Default)"
         if default_detector_name not in self.available_detectors:
             # Fallback if the default isn't present for some reason
             default_detector_name = list(self.available_detectors.keys())[0]
@@ -74,9 +74,6 @@ class PoseCamController:
         except Exception as e:
             logging.error(f"Failed to create performance log file: {e}")
             self.perf_log_file = None # Disable logging if file can't be created
-
-        self._initialize_detector()
-        self.pose_detector.save_landmark_map_to_csv()
 
         self.video_capture = None
         self.osc_client = None
@@ -292,12 +289,9 @@ class PoseCamController:
         logging.info(f"Changing detector model to: {model_name}")
         self.update_config('detector_model', model_name)
 
-        # Log the change event which will also reset the new model's stats
-        self._log_perf_event()
-
-        self._initialize_detector()
-        # Save the new landmark map for the new model
-        self.pose_detector.save_landmark_map_to_csv()
+        # Invalidate the current detector. It will be lazily re-initialized
+        # in the background thread when processing starts.
+        self.pose_detector = None
 
     def start_all(self):
         """Starts NDI, OSC, and the video stream in order."""
@@ -432,6 +426,18 @@ class PoseCamController:
         
         while not self._thread_should_stop.is_set():
             if self.state == AppState.RUNNING:
+                # --- Lazy Initialization of Detector ---
+                # If the detector hasn't been created yet (or was changed),
+                # initialize it now in the background thread.
+                if self.pose_detector is None:
+                    try:
+                        self._initialize_detector()
+                        self.pose_detector.save_landmark_map_to_csv()
+                    except Exception as e:
+                        logging.error(f"Failed to initialize detector in background thread. Stopping. Error: {e}")
+                        self.stop()
+                        continue
+
                 # If we are in RUNNING state but have no capture device, create it.
                 # This ensures the VideoCapture object is created and used in the same thread.
                 if self.video_capture is None:

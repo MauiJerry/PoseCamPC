@@ -75,8 +75,8 @@ class PoseDetectorYOLO_G(AbstractPoseDetector):
             5: 'shoulder_l', 6: 'shoulder_r', 7: 'elbow_l', 8: 'elbow_r',
             9: 'wrist_l', 10: 'wrist_r', 11: 'hip_l', 12: 'hip_r',
             13: 'knee_l', 14: 'knee_r', 15: 'ankle_l', 16: 'ankle_r'
-        }        
-        print(f"PoseDetectorYOLO_G initialized with model: {self.model_name}")
+        }
+        logging.info(f"PoseDetectorYOLO_G initialized with model: {self.model_name}")
 
     def process_image(self, image):
         """

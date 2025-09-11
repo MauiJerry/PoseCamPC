@@ -5,12 +5,7 @@ import numpy as np
 import cv2
 import logging
 import os
-
-try:
-    from ultralytics import YOLO
-except Exception as e:
-    YOLO = None
-    _YOLO_ERR = e
+from ultralytics import YOLO
 
 from .abstract_pose_detector import AbstractPoseDetector
 
@@ -52,6 +47,7 @@ class PoseDetectorYOLO_C(AbstractPoseDetector):
     def __init__(
         self,
         model_filename: str = "yolov8n-pose.pt",
+        display_name: str | None = None,
         conf: float = 0.25,
         iou: float = 0.45,
         imgsz: int = 640,
@@ -60,11 +56,12 @@ class PoseDetectorYOLO_C(AbstractPoseDetector):
     ):
         super().__init__()
 
-        if YOLO is None:
-            raise RuntimeError(f"Ultralytics import failed: {_YOLO_ERR}\nInstall with: pip install ultralytics")
-
         # Fill in required meta fields
-        self.model_name = f"YOLO-Pose:{model_filename}"
+        if display_name:
+            self.model_name = display_name
+        else:
+            self.model_name = f"YOLO-Pose:{model_filename}"
+
         self.schema_name = "COCO17"
         self.pose_id_to_name = COCO17_ID2NAME.copy()
 

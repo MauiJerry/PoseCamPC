@@ -32,9 +32,10 @@ logging.basicConfig(
 # Create a mapping of user-friendly names to detector classes.
 # This will be passed to the controller and then to the UI.
 AVAILABLE_DETECTORS = {
-    "MediaPipe Legacy (Default)": PoseDetectorMediapipe,
+    "MediaPipe v8n (Default)": PoseDetectorMediapipe,
     "MediaPipe Task API": partial(PoseDetectorMediaPipeTask, model='full', output_segmentation=False),
-    "MediaPipe Task API +Seg": partial(PoseDetectorMediaPipeTask, model='heavy', output_segmentation=True), # Segmentation requires the 'heavy' model
+    "MediaPipe Task API +Seg (GPU)": partial(PoseDetectorMediaPipeTask, model='heavy', output_segmentation=True), # Segmentation requires the 'heavy' model
+    "MediaPipe Task API +Seg (CPU)": partial(PoseDetectorMediaPipeTask, model='heavy', output_segmentation=True, delegate='CPU'),
     "YOLOv8 (Simple)": partial(PoseDetectorYOLO_G, model_filename='yolov8n-pose.pt', display_name="YOLOv8 (Simple)"),
     "YOLOv11 (Simple)": partial(PoseDetectorYOLO_G, model_filename='yolo11n-pose.pt', display_name="YOLOv11 (Simple)"), # NOTE: Requires manual download
     "YOLOv8 (Complex)": PoseDetectorYOLO_C,
